@@ -1,0 +1,27 @@
+# conda deactivate
+# conda env remove --name mario_rl
+# conda env create --file conda.yml
+# conda activate mario_rl
+
+name: mario_rl
+
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - jupyterlab
+  - pytorch::pytorch
+  - tensorboard
+  - tensordict
+  - mathplotlib
+  - pip
+  - pip:
+      - gym_super_mario_bros==7.4.0
+      - gym==0.23.1
+      - torchrl==0.2.1
+      - opencv-python
+      - lz4
+      # for video export
+      - scikit-video
