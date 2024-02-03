@@ -2,6 +2,7 @@
 # conda env remove --name mario_rl
 # conda env create --file conda.yml
 # conda activate mario_rl
+# conda deactivate && conda env remove --name mario_rl && conda env create --file conda.yml && conda activate mario_rl
 
 name: mario_rl
 
@@ -15,7 +16,8 @@ dependencies:
   - pytorch::pytorch
   - tensorboard
   - tensordict
-  - mathplotlib
+  - matplotlib
+  - ffmpeg
   - pip
   - pip:
       - gym_super_mario_bros==7.4.0
