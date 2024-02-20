@@ -105,6 +105,30 @@ class NormalizeReward(Wrapper):
         return self.env.reset()
 
 
+class SimpleRightReward(Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.best_x = np.float32(0)
+
+    def step(self, action):
+        state, reward, done, info = self.env.step(action)
+        current_x = np.float32(info['x_pos'])
+
+        # reward is the relative distance to the best x
+        # should be avoid divide by 0
+        reward = 0
+        if self.best_x != 0:
+            reward = current_x / self.best_x
+        
+        # update the best x
+        if current_x > self.best_x:
+            self.best_x = current_x
+
+        return state, reward, done, info
+
+    def reset(self):
+        return self.env.reset()
+
 def apply_wrappers(env):
     env = SkipFrame(env, skip=4)
     # shape = 30
@@ -112,5 +136,6 @@ def apply_wrappers(env):
     env = GrayScaleObservation(env, keep_dim=False)
     env = FrameStack(env, num_stack=4, lz4_compress=True)
     env = NormalizeFrame(env)
-    env = NormalizeReward(env)
+    # env = NormalizeReward(env)
+    env = SimpleRightReward(env)
     return env

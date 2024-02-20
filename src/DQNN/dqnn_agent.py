@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import torch
 from tensordict import TensorDict
@@ -5,13 +7,14 @@ from torch import nn
 from torch.optim import lr_scheduler
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
 
-from agent_nn import AgentNN
-from common import Common
+from common import Common, Logger
+from src.DQNN.agent_nn import AgentNN
 
 
-class Agent:
-    def __init__(self, input_dims, num_actions, common: Common):
+class DQNNAgent:
+    def __init__(self, input_dims, num_actions, common: Common, logger: Logger):
         self.common = common
+        self.logger = logger
         self.num_actions = num_actions
         self.learn_step_counter = 0
 
@@ -40,7 +43,8 @@ class Agent:
 
         # Replay buffer
         self.replay_buffer_capacity = 100_000
-        self.storage_dir = "./_dump"
+        self.storage_dir = Path(Path.cwd(), "_dump")
+        print("### storage_dir: ", self.storage_dir.resolve(), self.storage_dir.exists())
         storage = LazyMemmapStorage(
             self.replay_buffer_capacity, scratch_dir=self.storage_dir)
         self.replay_buffer = TensorDictReplayBuffer(storage=storage)
@@ -95,7 +99,7 @@ class Agent:
 
     def sync_networks(self):
         if self.learn_step_counter % self.common.sync_network_rate == 0 and self.learn_step_counter > 0:
-            self.common.add_scalar("sync", 1, -1, self.learn_step_counter)
+            self.logger.add_scalar("sync", 1, -1, self.learn_step_counter)
             self.target_network.load_state_dict(self.online_network.state_dict())
 
     def learn(self, episode):
@@ -117,9 +121,6 @@ class Agent:
         states, actions, rewards, next_states, dones = [
             samples[key] for key in keys]
 
-        if self.learn_step_counter % 1000 == 0:
-            print(f"Episode {episode}, step: {self.learn_step_counter}, states: {states.min()}, {states.max()}, {states.std()}, {states.mean()}")
-
         # Shape is (batch_size, n_actions)
         predicted_q_values = self.online_network(states)
         predicted_q_values = predicted_q_values[
@@ -137,13 +138,13 @@ class Agent:
         # target_q_values is the target (the value we want the network
         # to output, computed from the Bellman equation)
         loss = self.loss(predicted_q_values, target_q_values)
-        self.common.add_scalar("loss", loss, episode, self.learn_step_counter)
+        self.logger.add_scalar("loss", loss, episode, self.learn_step_counter)
         loss.backward()
 
         self.optimizer.step()
 
         self.decay_epsilon()
-        self.common.add_scalar("epsilon", self.epsilon, episode, self.learn_step_counter)
+        self.logger.add_scalar("epsilon", self.epsilon, episode, self.learn_step_counter)
         self.learn_step_counter += 1
 
     def debug_nn_size(self, state, device='mps'):

@@ -4,7 +4,7 @@ import torch
 from nes_py.wrappers import JoypadSpace
 
 from common import Common
-from wrapper import apply_wrappers
+from src.wrapper import apply_wrappers
 
 from pathlib import Path
 from skvideo.io import vwrite

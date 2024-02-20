@@ -5,8 +5,8 @@ import numpy as np
 from nes_py.wrappers import JoypadSpace
 
 from common import Common
-from wrapper import apply_wrappers
-from agent import Agent
+from src.wrapper import apply_wrappers
+from src.DQNN.dqnn_agent import DQNNAgent
 from pathlib import Path
 
 def test_from_checkpoint(checkpoint_path: str):
@@ -20,7 +20,7 @@ def test_from_checkpoint(checkpoint_path: str):
 
     env = JoypadSpace(env, Common.RIGHT_RUN)
     env = apply_wrappers(env)
-    agent = Agent(env.observation_space.shape, env.action_space.n, common)
+    agent = DQNNAgent(env.observation_space.shape, env.action_space.n, common)
     agent.load_state(checkpoint_path)
 
     done = False
