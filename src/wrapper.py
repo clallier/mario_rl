@@ -136,6 +136,6 @@ def apply_wrappers(env):
     env = GrayScaleObservation(env, keep_dim=False)
     env = FrameStack(env, num_stack=4, lz4_compress=True)
     env = NormalizeFrame(env)
-    # env = NormalizeReward(env)
-    env = SimpleRightReward(env)
+    env = NormalizeReward(env)
+    # env = SimpleRightReward(env)
     return env

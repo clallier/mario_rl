@@ -33,11 +33,11 @@ class DQNNAgent:
             self.online_network.parameters(),
             lr=self.common.learning_rate)
 
-        # self.scheduler = lr_scheduler.LinearLR(self.optimizer,
-        #                                        start_factor=self.common.learning_rate_start_factor,
-        #                                        end_factor=self.common.learning_rate_end_factor,
-        #                                        total_iters=self.common.NUM_OF_EPISODES)
-        self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=self.common.learning_rate_decay)
+        self.scheduler = lr_scheduler.LinearLR(self.optimizer,
+                                               start_factor=self.common.learning_rate_start_factor,
+                                               end_factor=self.common.learning_rate_end_factor,
+                                               total_iters=self.common.NUM_OF_EPISODES)
+        # self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=self.common.learning_rate_decay)
 
         self.loss = nn.SmoothL1Loss()  # Huber loss # nn.MSELoss()
 
@@ -62,7 +62,6 @@ class DQNNAgent:
         self.epsilon = max(self.epsilon * self.common.epsilon_decay, self.common.epsilon_min)
 
     def save_state(self, path):
-
         torch.save({
             'epsilon': self.epsilon,
             'optimizer': self.optimizer.state_dict(),
@@ -89,6 +88,9 @@ class DQNNAgent:
         self.target_network.load_state_dict(model_state_dict)
 
     def store_in_memory(self, state, action, reward, next_state, done):
+        if isinstance(reward, dict) and 'normalized' in reward:
+            reward = reward['normalized'] 
+
         self.replay_buffer.add(TensorDict({
             "state": torch.tensor(np.array(state), dtype=torch.float32),
             "action": torch.tensor(action),

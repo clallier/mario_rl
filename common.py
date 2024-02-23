@@ -34,10 +34,10 @@ class Common:
     learning_rate = 0.01
     learning_rate_start_factor = 1.
     learning_rate_end_factor = 0.00001
-    learning_rate_decay = 0.999
+    # learning_rate_decay = 0.999
     gamma = 0.99  # discount factor
     epsilon_init = 1.0  # exploration rate
-    epsilon_decay = 0.99999965
+    epsilon_decay = 0.99999972
     epsilon_min = 0.1
     batch_size = 32
 
@@ -89,7 +89,7 @@ class Tracker:
 
     def store_action(self, action, reward, episode):
         self.actions.append(action)
-        if isinstance(reward, dict) and 'raw' in reward:
+        if isinstance(reward, dict) and 'normalized' in reward:
             self.rewards += reward['raw']
             self.logger.add_scalar("reward_raw", reward['raw'], episode)
             self.logger.add_scalar("reward_normalized", reward['normalized'], episode)
