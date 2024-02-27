@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import numpy as np
+import tomli
 import torch
 from tensordict import TensorDict
 from torch import nn
@@ -12,32 +13,34 @@ from src.DQNN.agent_nn import AgentNN
 
 
 class DQNNAgent:
-    def __init__(self, input_dims, num_actions, common: Common, logger: Logger):
+    def __init__(self, input_dims, output_dims, common: Common, logger: Logger):
         self.common = common
         self.logger = logger
-        self.num_actions = num_actions
+        self.config = self.load_config_file('config.toml')
+        self.num_actions = output_dims
         self.learn_step_counter = 0
-
-        # Hyperparameters
+        # discount factor
+        self.gamma = self.config['gamma']
+        # batch size
+        self.batch_size = self.config['batch_size']
         # exploration rate
-        self.epsilon = self.common.epsilon_init
-
+        self.epsilon = self.config['epsilon_init']
         # Networks
         self.online_network = AgentNN(
-            input_dims, num_actions, device=self.common.device)
+            input_dims, output_dims, device=self.common.device)
         self.target_network = AgentNN(
-            input_dims, num_actions, freeze=True, device=self.common.device)
+            input_dims, output_dims, freeze=True, device=self.common.device)
 
         # Optimizer and loss
         self.optimizer = torch.optim.Adam(
             self.online_network.parameters(),
-            lr=self.common.learning_rate)
+            lr=self.config['learning_rate'])
 
         self.scheduler = lr_scheduler.LinearLR(self.optimizer,
-                                               start_factor=self.common.learning_rate_start_factor,
-                                               end_factor=self.common.learning_rate_end_factor,
+                                               start_factor=self.config['learning_rate_start_factor'],
+                                               end_factor=self.config['learning_rate_end_factor'],
                                                total_iters=self.common.NUM_OF_EPISODES)
-        # self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=self.common.learning_rate_decay)
+        # self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=self.config.learning_rate_decay)
 
         self.loss = nn.SmoothL1Loss()  # Huber loss # nn.MSELoss()
 
@@ -49,6 +52,13 @@ class DQNNAgent:
             self.replay_buffer_capacity, scratch_dir=self.storage_dir)
         self.replay_buffer = TensorDictReplayBuffer(storage=storage)
 
+    def load_config_file(self, load_config_file):
+        config_file = Path(Path(__file__).parent, load_config_file)
+        print(config_file.resolve(), config_file.exists())
+        config_file = tomli.loads(config_file.read_text(encoding="utf-8"))
+        print(f"DDQNAgent.load_config_file: {config_file}")
+        return config_file
+
     def choose_action(self, state):
         if np.random.random() < self.epsilon:
             return np.random.choice(self.num_actions)
@@ -59,7 +69,7 @@ class DQNNAgent:
             return q_values.argmax().item()
 
     def decay_epsilon(self):
-        self.epsilon = max(self.epsilon * self.common.epsilon_decay, self.common.epsilon_min)
+        self.epsilon = max(self.epsilon * self.config['epsilon_decay'], self.config['epsilon_min'])
 
     def save_state(self, path):
         torch.save({
@@ -100,13 +110,13 @@ class DQNNAgent:
         }, batch_size=[]))
 
     def sync_networks(self):
-        if self.learn_step_counter % self.common.sync_network_rate == 0 and self.learn_step_counter > 0:
-            self.logger.add_scalar("sync", 1, -1, self.learn_step_counter)
+        if self.learn_step_counter % self.config['sync_network_rate'] == 0 and self.learn_step_counter > 0:
+            self.logger.add_scalar("sync", 1, self.learn_step_counter)
             self.target_network.load_state_dict(self.online_network.state_dict())
 
     def learn(self, episode):
         # if not enough samples in replay buffer, do nothing
-        if len(self.replay_buffer) < self.common.batch_size:
+        if len(self.replay_buffer) < self.batch_size:
             return
 
         # if needed, sync target network with online network
@@ -115,7 +125,7 @@ class DQNNAgent:
         # reset gradients
         self.optimizer.zero_grad()
         # get some samples from replay buffer
-        samples = self.replay_buffer.sample(self.common.batch_size).to(self.common.device)
+        samples = self.replay_buffer.sample(self.batch_size).to(self.common.device)
 
         # get q values for current state
         keys = ('state', 'action', 'reward', 'next_state', 'done')
@@ -126,13 +136,13 @@ class DQNNAgent:
         # Shape is (batch_size, n_actions)
         predicted_q_values = self.online_network(states)
         predicted_q_values = predicted_q_values[
-            np.arange(self.common.batch_size), actions.squeeze()
+            np.arange(self.batch_size), actions.squeeze()
         ]
 
         # target q values
         target_q_values = self.target_network(next_states).max(dim=1)[0]
         target_q_values = \
-            rewards + self.common.gamma * target_q_values * (1 - dones.float())
+            rewards + self.gamma * target_q_values * (1 - dones.float())
 
         # compute loss based on the difference between predicted and
         # target q values because we want to minimize this difference:
@@ -140,13 +150,13 @@ class DQNNAgent:
         # target_q_values is the target (the value we want the network
         # to output, computed from the Bellman equation)
         loss = self.loss(predicted_q_values, target_q_values)
-        self.logger.add_scalar("loss", loss, episode, self.learn_step_counter)
+        self.logger.add_scalar("loss", loss, self.learn_step_counter)
         loss.backward()
 
         self.optimizer.step()
 
         self.decay_epsilon()
-        self.logger.add_scalar("epsilon", self.epsilon, episode, self.learn_step_counter)
+        self.logger.add_scalar("epsilon", self.epsilon, self.learn_step_counter)
         self.learn_step_counter += 1
 
     def debug_nn_size(self, state, device='mps'):

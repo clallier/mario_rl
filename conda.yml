@@ -30,3 +30,6 @@ dependencies:
       - lz4
       # for video export
       - scikit-video
+      - tomli
+      - neat-python
+

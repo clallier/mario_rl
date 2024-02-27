@@ -1,0 +1,16 @@
+# Learning rate
+learning_rate_start_factor = 1.0
+learning_rate = 0.01
+learning_rate_end_factor = 0.00001
+# learning_rate_decay = 0.999
+
+# batch size
+batch_size = 32
+# how often to sync target network with online network
+sync_network_rate = 4000
+# discount factor
+gamma = 0.99
+# exploration rate
+epsilon_init = 1.0
+epsilon_decay = 0.99999972
+epsilon_min = 0.1

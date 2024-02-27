@@ -6,6 +6,7 @@ import torch
 from nes_py.wrappers import JoypadSpace
 
 from common import Common, Logger, Tracker
+from src.NEAT.neat_agent import NEATAgent
 from src.wrapper import apply_wrappers
 from src.DQNN.dqnn_agent import DQNNAgent
 
@@ -13,18 +14,18 @@ from pathlib import Path
 
 
 class Train:
-    logger = Logger()
-    common = Common()
-    tracker = Tracker(logger)
-
     def __init__(self, from_episode=0):
+        self.common = Common()
+        self.logger = Logger(start_tensorboard=True)
+        self.tracker = Tracker(self.logger)
+
         env = gym_super_mario_bros.make(self.common.ENV_NAME)
         env.metadata['render.modes'] = ['human', 'rgb_array']
         env.metadata['apply_api_compatibility'] = True
 
         env = JoypadSpace(env, self.common.RIGHT_RUN)
         env = apply_wrappers(env)
-        agent = DQNNAgent(env.observation_space.shape, env.action_space.n, self.common, self.logger)
+        agent = self.load_agent(env)
         self.load_agent_state(agent, from_episode)
 
         state = env.reset()
@@ -60,6 +61,19 @@ class Train:
         env.close()
         self.logger.close()
 
+
+    def load_agent(self, env):
+        input_dims = env.observation_space.shape
+        output_dims = env.action_space.n
+
+        if self.common.agent == 'NEAT':
+            return NEATAgent(input_dims, output_dims, self.common, self.logger)
+        elif self.common.agent == 'DQNN':
+            return DQNNAgent(input_dims, output_dims, self.common, self.logger)
+        else:
+            raise ValueError(f"Unknown agent type: {self.common.agent}")
+
+
     def save_agent_state(self, agent, episode):
         if episode % self.common.SAVE_FREQ == 0:
             path = Path(self.logger.checkpoint_dir, f"agent_checkpoint_{episode}.pt")
@@ -83,3 +97,4 @@ class Train:
 
 if __name__ == "__main__":
     Train(0)
+    # agent = NEATAgent(None, None)

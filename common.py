@@ -1,3 +1,4 @@
+from datetime import datetime
 from pathlib import Path
 
 import torch
@@ -17,57 +18,53 @@ def get_device():
 
 class Common:
     NUM_OF_EPISODES = 10_000
+    # in episodes
+    SAVE_FREQ = 1000
     ENV_NAME = 'SuperMarioBros-1-1-v3'
     RIGHT_RUN = [
         ['right', 'B'],
         ['right', 'A', 'B']
     ]
-
     device = get_device()
+    agent = 'DQNN'
 
-    # in episodes
-    SAVE_FREQ = 1000
-    # how often to sync target network with online network
-    sync_network_rate = 1000
-
-    # Hyperparameters
-    learning_rate = 0.01
-    learning_rate_start_factor = 1.
-    learning_rate_end_factor = 0.00001
-    # learning_rate_decay = 0.999
-    gamma = 0.99  # discount factor
-    epsilon_init = 1.0  # exploration rate
-    epsilon_decay = 0.99999972
-    epsilon_min = 0.1
-    batch_size = 32
 
 class Logger:
-    def __init__(self, start_logger=True):
-        if start_logger is False:
-            return
-        self.writer = SummaryWriter()
-        self.log_dir = self.writer.log_dir
+    def __init__(self, start_tensorboard=True):
+        if start_tensorboard is True:
+            self.writer = SummaryWriter()
+        else:
+            self.writer = DummyLogger()
 
+        self.log_dir = self.writer.log_dir
         self.checkpoint_dir = Path(self.log_dir, 'checkpoints')
         self.actions_dir = Path(self.log_dir, 'actions')
-        Path(self.checkpoint_dir).mkdir()
-        Path(self.actions_dir).mkdir()
+        Path(self.checkpoint_dir).mkdir(parents=True)
+        Path(self.actions_dir).mkdir(parents=True)
 
-    def add_scalar(self, name: str, value, episode: int, step: int = -1):
-        if self.writer is None:
-            print(f"Episode {episode}, step: {step}, {name}: {value}")
-        else:
-            if step == -1:
-                step = episode
-            self.writer.add_scalar(name, value, step)
+    def add_scalar(self, name: str, value, step: int = -1):
+        self.writer.add_scalar(name, value, step)
 
     def flush(self):
-        if self.writer:
-            self.writer.flush()
+        self.writer.flush()
 
     def close(self):
-        if self.writer:
-            self.writer.close()
+        self.writer.close()
+
+class DummyLogger:
+    def __init__(self):
+        date_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+        self.log_dir = Path(Path.cwd(), "runs", date_str)
+
+    def add_scalar(self, name: str, value, step: int):
+        print(f"step: {step}, {name}: {value}")
+
+    def flush(self):
+        pass
+
+    def close(self):
+        pass
+
 
 
 class Tracker:
