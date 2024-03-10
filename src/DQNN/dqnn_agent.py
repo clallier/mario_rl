@@ -8,7 +8,7 @@ from torch import nn
 from torch.optim import lr_scheduler
 from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
 
-from common import Common, Logger
+from src.Common.common import Common, Logger
 from src.DQNN.agent_nn import AgentNN
 
 
@@ -16,7 +16,7 @@ class DQNNAgent:
     def __init__(self, input_dims, output_dims, common: Common, logger: Logger):
         self.common = common
         self.logger = logger
-        self.config = self.load_config_file('config.toml')
+        self.config = Common.load_config_file("config.toml")
         self.num_actions = output_dims
         self.learn_step_counter = 0
         # discount factor
@@ -51,13 +51,6 @@ class DQNNAgent:
         storage = LazyMemmapStorage(
             self.replay_buffer_capacity, scratch_dir=self.storage_dir)
         self.replay_buffer = TensorDictReplayBuffer(storage=storage)
-
-    def load_config_file(self, load_config_file):
-        config_file = Path(Path(__file__).parent, load_config_file)
-        print(config_file.resolve(), config_file.exists())
-        config_file = tomli.loads(config_file.read_text(encoding="utf-8"))
-        print(f"DDQNAgent.load_config_file: {config_file}")
-        return config_file
 
     def choose_action(self, state):
         if np.random.random() < self.epsilon:

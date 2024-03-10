@@ -1,10 +1,13 @@
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PosixPath
 
+import tomli
 import torch
 from torch.utils.tensorboard import SummaryWriter
+
 import collections
 from statistics import mean, stdev
+
 
 # static values
 def get_device():
@@ -26,7 +29,17 @@ class Common:
         ['right', 'A', 'B']
     ]
     device = get_device()
-    agent = 'DQNN'
+    debug = False
+
+    @staticmethod
+    def load_config_file(config_file, parent=None):
+        if not isinstance(config_file, PosixPath) and parent is None:
+            parent = Path(__file__).parent
+            config_file = Path(parent, config_file)
+        print(f"Common.load_config_file: {config_file.resolve()}, exists: {config_file.exists()}")
+        with open(config_file, "rb") as f:
+            data = tomli.load(f)
+        return data
 
 
 class Logger:
@@ -37,19 +50,26 @@ class Logger:
             self.writer = DummyLogger()
 
         self.log_dir = self.writer.log_dir
-        self.checkpoint_dir = Path(self.log_dir, 'checkpoints')
-        self.actions_dir = Path(self.log_dir, 'actions')
+        self.checkpoint_dir = Path(self.log_dir, 'checkpoints/')
+        self.actions_dir = Path(self.log_dir, 'actions/')
         Path(self.checkpoint_dir).mkdir(parents=True)
         Path(self.actions_dir).mkdir(parents=True)
 
     def add_scalar(self, name: str, value, step: int = -1):
         self.writer.add_scalar(name, value, step)
+        
+    def add_histogram(self, name: str, value, step: int = -1):
+        self.writer.add_histogram(name, value, step)
+
+    def add_hparams(self, hparams: dict):
+        self.writer.add_hparams(hparams)
 
     def flush(self):
         self.writer.flush()
 
     def close(self):
         self.writer.close()
+
 
 class DummyLogger:
     def __init__(self):
@@ -59,12 +79,17 @@ class DummyLogger:
     def add_scalar(self, name: str, value, step: int):
         print(f"step: {step}, {name}: {value}")
 
+    def add_histogram(self, name: str, value, step: int):
+        pass
+
+    def add_hparams(self, hparams):
+        pass
+
     def flush(self):
         pass
 
     def close(self):
         pass
-
 
 
 class Tracker:
@@ -94,7 +119,7 @@ class Tracker:
             self.rewards += reward
             self.logger.add_scalar("reward_raw", reward, episode)
 
-    def end_of_episode(self, info, episode, save_actions = None):
+    def end_of_episode(self, info, episode, save_actions=None):
         get_flag = info.get('flag_get', False) if info is not None else False
         self.d.append(self.rewards)
         self.flag_get_sum += get_flag
@@ -106,11 +131,11 @@ class Tracker:
                 print(f'"WARNING tracker.end_of_episode: save_actions is None, skipping save_actions"')
             else:
                 save_actions(self.actions, episode, self.rewards)
-            
+
         self.logger.add_scalar("rewards", self.rewards, episode)
         self.logger.add_scalar("avg_10", avg_10, episode)
         self.logger.add_scalar("std_10", std_10, episode)
         self.logger.add_scalar("flag_get_sum", self.flag_get_sum, episode)
 
         print(f'Episode {episode}, rewards: {self.rewards:.1f}, best so far: {self.best_reward:.1f}, '
-                f'mean_10: {avg_10:.1f}, std_10: {std_10:.1f}')
+              f'mean_10: {avg_10:.1f}, std_10: {std_10:.1f}')

@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Train",
+            "name": "main: Train",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/train.py",
+            "program": "${workspaceFolder}/main.py",
             "console": "integratedTerminal",
             "autoReload": {
                 "enable": true

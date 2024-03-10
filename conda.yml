@@ -21,6 +21,7 @@ dependencies:
   - tensordict
   - matplotlib
   - ffmpeg
+  - conda-forge::pygraphviz
   - pip
   - pip:
       - gym_super_mario_bros==7.4.0
@@ -32,4 +33,3 @@ dependencies:
       - scikit-video
       - tomli
       - neat-python
-

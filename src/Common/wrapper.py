@@ -119,7 +119,7 @@ class SimpleRightReward(Wrapper):
         reward = 0
         if self.best_x != 0:
             reward = current_x / self.best_x
-        
+
         # update the best x
         if current_x > self.best_x:
             self.best_x = current_x
@@ -128,6 +128,7 @@ class SimpleRightReward(Wrapper):
 
     def reset(self):
         return self.env.reset()
+
 
 def apply_wrappers(env):
     env = SkipFrame(env, skip=4)

@@ -5,9 +5,10 @@ import numpy as np
 from nes_py.wrappers import JoypadSpace
 
 from common import Common
-from src.wrapper import apply_wrappers
+from src.Common.wrapper import apply_wrappers
 from src.DQNN.dqnn_agent import DQNNAgent
 from pathlib import Path
+
 
 def test_from_checkpoint(checkpoint_path: str):
     checkpoint_path = Path(checkpoint_path)
@@ -37,9 +38,11 @@ def test_from_checkpoint(checkpoint_path: str):
     env.close()
     return reward_sum_raw
 
+
 if __name__ == "__main__":
-    checkpoint_path = "runs/Feb15_22-47-59_Corentins-MacBook-Pro.local/checkpoints/agent_checkpoint_0.pt"
+    checkpoint_path = "../../runs/Feb15_22-47-59_Corentins-MacBook-Pro.local/checkpoints/agent_checkpoint_0.pt"
     scores = []
     for i in range(10):
         scores.append(test_from_checkpoint(checkpoint_path))
-    print("### scores: ", scores, "mean: ", np.mean(scores), "stdev: ", np.std(scores), "best: ", np.max(scores), "worst: ", np.min(scores))
+    print("### scores: ", scores, "mean: ", np.mean(scores), "stdev: ", np.std(scores), "best: ", np.max(scores),
+          "worst: ", np.min(scores))

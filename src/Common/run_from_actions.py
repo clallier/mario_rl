@@ -4,16 +4,17 @@ import torch
 from nes_py.wrappers import JoypadSpace
 
 from common import Common
-from src.wrapper import apply_wrappers
+from src.Common.wrapper import apply_wrappers
 
 from pathlib import Path
 from skvideo.io import vwrite
 
-def test_from_actions(action_pt_path:str):
+
+def test_from_actions(action_pt_path: str):
     path = Path(action_pt_path)
     print("### loading actions from: ", path.resolve(), path.exists())
     actions = torch.load(path)
-    
+
     env = gym_super_mario_bros.make(Common.ENV_NAME)
     env.metadata['render.modes'] = ['rgb_array']
     env.metadata['apply_api_compatibility'] = True
@@ -57,4 +58,4 @@ def test_from_actions(action_pt_path:str):
 
 
 if __name__ == "__main__":
-    test_from_actions("runs/Feb15_22-47-59_Corentins-MacBook-Pro.local/actions/agent_actions_ep:6985_rw:3058.pt")
+    test_from_actions("../../runs/Feb15_22-47-59_Corentins-MacBook-Pro.local/actions/agent_actions_ep:6985_rw:3058.pt")
