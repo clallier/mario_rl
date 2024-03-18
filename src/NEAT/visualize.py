@@ -3,9 +3,10 @@ import warnings
 import pygraphviz
 import matplotlib.pyplot as plt
 import numpy as np
+import networkx as nx
 
 
-def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
+def plot_stats(statistics, ylog=False):
     """ Plots the population's average and best fitness. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
@@ -29,14 +30,12 @@ def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
     if ylog:
         plt.gca().set_yscale('symlog')
 
-    plt.savefig(filename)
-    if view:
-        plt.show()
-
+    figure = plt.gcf()
     plt.close()
+    return figure
 
 
-def plot_species(statistics, view=False, filename='speciation.svg'):
+def plot_species(statistics):
     """ Visualizes speciation throughout evolution. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
@@ -53,34 +52,12 @@ def plot_species(statistics, view=False, filename='speciation.svg'):
     plt.ylabel("Size per Species")
     plt.xlabel("Generations")
 
-    plt.savefig(filename)
-
-    if view:
-        plt.show()
-
+    figure = plt.gcf()
     plt.close()
-
-def debug_draw_net():
-    g = pygraphviz.AGraph(directed=True, format='svg')
-    w = 30
-    h = 30 * 4
-    x = y = 0
-
-    for i in range(0, -3600, -3):
-        node_attr = {}
-        if i < 0:
-            x = i % w
-            y = -i // w
-        print(f"node {i}, x: {x}, y: {y}")
-        node_attr['pos'] = f"{x}, {y}!"
-        g.add_node(i, node_attr=node_attr)
-
-    # top tier: neato, twopi
-    # ok tier: fdp, sfdp, circo
-    g.draw("best_genome.svg", prog="neato")
+    return figure
 
 
-def draw_net(filename, genome, prog='sfdp'):
+def draw_net(genome, prog='sfdp'):
     """ Receives a genome and draws a neural network with arbitrary topology. """
     # Attributes for network nodes.
     if pygraphviz is None:
@@ -98,7 +75,7 @@ def draw_net(filename, genome, prog='sfdp'):
     for cg in genome.connections.values():
         src, dst = cg.key
         style = 'solid' if cg.enabled else 'dotted'
-        color = '#ff00ffaa' if cg.weight > 0 else '#00ffffaa'
+        color = '#ff00ff' if cg.weight > 0 else '#00ffff'
         width = str(0.1 + abs(cg.weight * 2.0))
         g.add_edge(src, dst, style=style, color=color, penwidth=width)
 
@@ -124,6 +101,47 @@ def draw_net(filename, genome, prog='sfdp'):
 
     # top tier: neato, twopi
     # ok tier: fdp, sfdp, circo
-    g.draw(filename, prog=prog)
+    g.layout(prog)
+    return draw_using_networkx(g)
 
-    return g
+
+def draw_using_networkx(g):
+    # draw the graph g using matplotlib and networkx
+    # first need to convert the graph to a networkx graph
+    nx_g = nx.nx_agraph.from_agraph(g)
+    # get the nodes' positions (convert from string to float)
+    pos = [node.attr['pos'].split(',') for node in g.nodes()]
+    pos = {node: (float(x), -float(y)) for node, (x, y) in zip(g.nodes(), pos)}
+
+    # get nodes color
+    node_color = [node.attr['color'] for node in g.nodes()]
+    node_color = [c if c != '' else '#00000022' for c in node_color]
+
+    # draw the nodes
+    nx.draw_networkx_nodes(
+        nx_g,
+        pos,
+        node_color=node_color
+    )
+
+    # get edges color and width
+    edge_colors = [e.attr['color'] for e in g.edges()]
+    edge_width = [2.0 * float(e.attr['penwidth']) for e in g.edges()]
+
+    # draw the edges    
+    nx.draw_networkx_edges(
+        nx_g,
+        pos,
+        arrowstyle="->",
+        arrowsize=5,
+        edge_color=edge_colors,
+        alpha=0.7,
+        width=edge_width
+    )
+
+    # draw the labels
+    nx.draw_networkx_labels(nx_g, pos, font_size=7, alpha=0.8)
+
+    figure = plt.gcf()
+    plt.close()
+    return figure

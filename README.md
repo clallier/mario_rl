@@ -6,7 +6,7 @@ An experiment on reinforcement learning
 
 Activate the environment: `conda activate mario_rl`
 
-Run a training: `python train.py`
+Run a training: `python main.py`
 
 ### Tensorboard
 

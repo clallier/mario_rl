@@ -3,7 +3,7 @@ import numpy as np
 
 
 class NeatAgent:
-    def __init__(self, genome_tuple, config, sim, debug=False):
+    def __init__(self, genome, config, sim, debug=False):
         self.debug = debug
         self.sim = sim
         self.state = sim.reset()
@@ -11,8 +11,8 @@ class NeatAgent:
         self.done = False
         self.info = {}
 
-        self.genome_key = genome_tuple[0]
-        self.genome = genome_tuple[1]
+        self.genome_key = genome.key
+        self.genome = genome
         self.genome.fitness = 0
         self.genome.flag_get = False
         self.config = config

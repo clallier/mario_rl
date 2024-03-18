@@ -1,15 +1,22 @@
+import pickle
+import random
 from datetime import datetime
 from pathlib import Path, PosixPath
 
+import numpy as np
 import tomli
+from configparser import ConfigParser
+
 import torch
 from torch.utils.tensorboard import SummaryWriter
 
 import collections
 from statistics import mean, stdev
+import matplotlib.pyplot as plt
+
+import shutil
 
 
-# static values
 def get_device():
     device = 'cpu'
     if torch.backends.mps.is_built():
@@ -19,7 +26,14 @@ def get_device():
     return device
 
 
+def set_seed(seed=0):
+    torch.manual_seed(seed)
+    random.seed(seed)
+    np.random.seed(0)
+
+
 class Common:
+    # static values
     NUM_OF_EPISODES = 10_000
     # in episodes
     SAVE_FREQ = 1000
@@ -30,6 +44,7 @@ class Common:
     ]
     device = get_device()
     debug = False
+    set_seed()
 
     @staticmethod
     def load_config_file(config_file, parent=None):
@@ -37,8 +52,13 @@ class Common:
             parent = Path(__file__).parent
             config_file = Path(parent, config_file)
         print(f"Common.load_config_file: {config_file.resolve()}, exists: {config_file.exists()}")
-        with open(config_file, "rb") as f:
-            data = tomli.load(f)
+        if config_file.suffix == 'toml':
+            with open(config_file, "rb") as f:
+                data = tomli.load(f)
+        else:
+            data = ConfigParser()
+            data.read(str(config_file.resolve()), 'UTF-8')
+            data = data._sections
         return data
 
 
@@ -57,12 +77,27 @@ class Logger:
 
     def add_scalar(self, name: str, value, step: int = -1):
         self.writer.add_scalar(name, value, step)
-        
+
     def add_histogram(self, name: str, value, step: int = -1):
         self.writer.add_histogram(name, value, step)
 
-    def add_hparams(self, hparams: dict):
-        self.writer.add_hparams(hparams)
+    def add_hparams(self, hparams: dict, metrics: dict = None):
+        if metrics is None:
+            metrics = {}
+        self.writer.add_hparams(hparams, metrics)
+
+    def add_file(self, file_path):
+        from_path = Path(file_path)
+        to_path = Path(self.log_dir, from_path.name)
+        shutil.copy(from_path, to_path)
+
+    def add_figure(self, name, fig: plt.Figure):
+        self.writer.add_figure(name, fig)
+
+    def add_pickle(self, name, element):
+        to_path = Path(self.log_dir, f'{name}.pkl')
+        with open(to_path, 'wb') as f:
+            pickle.dump(element, f, protocol=5)
 
     def flush(self):
         self.writer.flush()
@@ -82,8 +117,11 @@ class DummyLogger:
     def add_histogram(self, name: str, value, step: int):
         pass
 
-    def add_hparams(self, hparams):
+    def add_hparams(self, hparams: dict, metrics: dict):
         pass
+
+    def add_figure(self, name, fig: plt.Figure):
+        fig.savefig(Path(self.log_dir, f'{name}.svg'))
 
     def flush(self):
         pass

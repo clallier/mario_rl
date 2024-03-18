@@ -1,26 +1,23 @@
-from pathlib import Path
 import time
 
 import numpy as np
-import torchvision as torchvision
 from neat import DefaultGenome
+from neat.species import GenomeDistanceCache
 
-from src.Common.common import Logger
+from src.Common.sim import Sim
 from src.NEAT import visualize
-
 import neat
-from neat.six_util import itervalues, iterkeys
 
 
 class StatisticsLogger(neat.StatisticsReporter):
-    def __init__(self, start_tensorboard=True):
+    def __init__(self, logger):
         super().__init__()
         self.num_extinctions = 0
         self.generation_times = []
         self.generation = 0
         self.generation_start_time = 0
         self.flag_get_sum = 0
-        self.logger = Logger(start_tensorboard)
+        self.logger = logger
 
     def info(self, msg):
         print(msg)
@@ -46,31 +43,33 @@ class StatisticsLogger(neat.StatisticsReporter):
         self.logger.add_scalar("Best genome key", best_genome.key, self.generation)
 
         # flag_get
-        self.flag_get_sum += sum([c.flag_get for c in itervalues(population)])
+        self.flag_get_sum += sum([c.flag_get for c in population.values()])
         self.logger.add_scalar('flag_get_sum', self.flag_get_sum, self.generation)
 
         # Store the fitness's of the members of each currently active species.
-        fitnesses = np.array([c.fitness for c in itervalues(population)])
-        fit_mean = fitnesses.mean()
-        fit_std = fitnesses.std()
+        pop_fitness = np.array([c.fitness for c in population.values()])
+        fit_mean = pop_fitness.mean()
+        fit_std = pop_fitness.std()
         best_species_id = species.get_species_id(best_genome.key)
-        self.logger.add_histogram('Finesses', fitnesses, self.generation)
-        print(f'Population\'s average fitness: {fit_mean:3.5f} stdev: {fit_std:3.5f}')
-        print(
-            f'Best fitness: {best_genome.fitness:3.5f} - size: {best_genome.size()!r} - species {best_species_id} - id {best_genome.key}')
+        self.logger.add_histogram('Finesses', pop_fitness, self.generation)
+        print(f'Pop\'s average fit: {fit_mean:3.5f} std: {fit_std:3.5f}')
+        print(f'Best fit: {best_genome.fitness:3.5f} - size: {best_genome.size()!r}'
+              f' - species {best_species_id} - id {best_genome.key}')
+        self.logger.add_scalar("Pop fitness avg", fit_mean, self.generation)
+        self.logger.add_scalar("Pop fitness std", fit_std, self.generation)
 
     def end_generation(self, config, population, species_set):
+        super().end_generation(config, population, species_set)
+
         print('\n ****** End generation {0} ****** \n'.format(self.generation))
 
-        super().end_generation(config, population, species_set)
         ng = len(population)
         ns = len(species_set.species)
         print('Population of {0:d} members in {1:d} species:'.format(ng, ns))
         self.logger.add_scalar('Population', ng, self.generation)
         self.logger.add_scalar('Species', ns, self.generation)
 
-        sids = list(iterkeys(species_set.species))
-        sids.sort()
+        sids = sorted(species_set.species.keys())
         print("   ID   age  size  fitness  adj fit  stag")
         print("  ====  ===  ====  =======  =======  ====")
         for sid in sids:
@@ -93,32 +92,41 @@ class StatisticsLogger(neat.StatisticsReporter):
         else:
             print("Generation time: {0:.3f} sec".format(elapsed))
 
-        # TODO
         print('Total extinctions: {0:d}'.format(self.num_extinctions))
         self.logger.add_scalar('Extinctions', self.num_extinctions, self.generation)
+
+        # Get genetic dist to the best representatives for each species
+        gids = population.keys()
+        distances = GenomeDistanceCache(config.genome_config)
+        sids = sorted(species_set.species.keys())
+        for sid in sids:
+            s = species_set.species[sid]
+            for gid in gids:
+                g = population[gid]
+                distances(s.representative, g)
+
+        dists = np.array(list(distances.distances.values()))
+        gdmean = dists.mean()
+        gdstdev = dists.std()
+        print(f'>>>> Mean genetic distance {gdmean:3.5f}, standard deviation {gdstdev:3.5f}')
+        self.logger.add_scalar("Mean genetic distance", gdmean, self.generation)
+        self.logger.add_scalar("Std genetic distance", gdstdev, self.generation)
+
         self.logger.flush()
 
     def save(self):
         # We need to overload the behaviour of the StatisticsReporter.save()
         # super().save()
-        # TODO
-        #   1 - save best
-        #   3 - compute genome distances
-        #   4 - add/remove nodes
-        #   5 - plot_stats (avg_fitness.svg) -> tsboard
-        #   6 - plot_species (speciation.svg) -> tsboard
-        #   7 - config dict -> tsboard
         winner = self.best_genome()
+        self.logger.add_pickle("best_genome", winner)
 
-        self.save_species_count()
-        self.save_species_fitness()
-
-        visualize.plot_stats(self)
-        visualize.plot_species(self)
+        self.logger.add_figure("avg_fitness", visualize.plot_stats(self))
+        self.logger.add_figure("speciation", visualize.plot_species(self))
         # plot the best of the last generation
         for prog in ['sfdp', 'twopi', 'neato']:
             name = f'best_genome_{prog}'
-            filename = Path(self.logger.log_dir, f'{name}.svg')
-            visualize.draw_net(filename, winner, prog)
+            self.logger.add_figure(name, visualize.draw_net(winner, prog))
 
         self.logger.close()
+        return winner
+
