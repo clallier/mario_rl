@@ -3,7 +3,7 @@
 # conda env create --file environment.yml
 # conda activate mario_rl
 #
-# conda deactivate && conda env remove --name mario_rl && conda env create --file environment.yml && conda activate mario_rl
+# conda deactivate && conda env remove --name mario_rl_py3.12 && conda env create --file environment.yml && conda activate mario_rl_py3.12
 #
 # tensorboard --logdir runs
 
@@ -26,7 +26,7 @@ dependencies:
   - pip:
       - gym_super_mario_bros==7.4.0
       - gym==0.23.1
-      - torchrl
+      - torchrl==0.3
       - opencv-python
       - lz4
       # for video export
