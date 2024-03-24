@@ -16,7 +16,7 @@ class NEATTrainer:
         self.common = Common()
         self.logger = Logger(True)
 
-        config_file_path = Path(Path(__file__).parent, 'config.cfg')
+        config_file_path = Path(Path(__file__).parent, 'config.v3.cfg')
         self.logger.add_file(config_file_path)
 
         self.config = neat.config.Config(
@@ -31,7 +31,7 @@ class NEATTrainer:
         p = neat.Population(self.config)
         stats_logger = StatisticsLogger(self.logger)
         p.add_reporter(stats_logger)
-        p.run(self.eval_genomes, 100)
+        p.run(self.eval_genomes, 1000)
         return stats_logger.save()
 
     def test(self, genome):
