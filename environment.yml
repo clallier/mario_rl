@@ -26,7 +26,7 @@ dependencies:
   - pip:
       - gym_super_mario_bros==7.4.0
       - gym==0.23.1
-      - torchrl==0.3.1
+      - torchrl
       - opencv-python
       - lz4
       # for video export
