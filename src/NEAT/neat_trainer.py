@@ -31,7 +31,7 @@ class NEATTrainer:
         p = neat.Population(self.config)
         stats_logger = StatisticsLogger(self.logger)
         p.add_reporter(stats_logger)
-        p.run(self.eval_genomes, 1000)
+        p.run(self.eval_genomes, n=None)
         return stats_logger.save()
 
     def test(self, genome):

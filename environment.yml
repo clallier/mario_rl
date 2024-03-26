@@ -7,14 +7,14 @@
 #
 # tensorboard --logdir runs
 
-name: mario_rl_py3.12
+name: mario_rl_py3.11
 
 channels:
   - pytorch
   - conda-forge
   - defaults
 dependencies:
-  - python=3.12
+  - python=3.11
   - jupyterlab
   - pytorch::pytorch
   - tensorboard
