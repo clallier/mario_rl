@@ -1,22 +1,21 @@
+import asyncio
+import collections
+import os
 import pickle
 import random
+import shutil
+from configparser import ConfigParser
 from datetime import datetime
 from pathlib import Path, PosixPath
+from statistics import mean, stdev
 
+import matplotlib.pyplot as plt
 import numpy as np
 import tomli
-from configparser import ConfigParser
-
 import torch
-from torch.utils.tensorboard import SummaryWriter
-
-import collections
-from statistics import mean, stdev
-import matplotlib.pyplot as plt
-
-import shutil
 import wandb
-import asyncio
+from dotenv import load_dotenv
+from torch.utils.tensorboard import SummaryWriter
 
 
 def background(f):
@@ -42,10 +41,6 @@ def set_seed(seed=0):
 
 
 class Common:
-    # static values
-    NUM_OF_EPISODES = 10_000
-    # in episodes
-    SAVE_FREQ = 1000
     ENV_NAME = 'SuperMarioBros-1-1-v3'
     RIGHT_RUN = [
         ['right', 'B'],
@@ -54,14 +49,15 @@ class Common:
     device = get_device()
     debug = False
     set_seed()
+    load_dotenv()
 
     @staticmethod
-    def load_config_file(config_file, parent=None):
-        if not isinstance(config_file, PosixPath) and parent is None:
-            parent = Path(__file__).parent
-            config_file = Path(parent, config_file)
+    def load_config_file(config_file):
+        if not isinstance(config_file, PosixPath):
+            config_file = Path(config_file)
         print(f"Common.load_config_file: {config_file.resolve()}, exists: {config_file.exists()}")
-        if config_file.suffix == 'toml':
+
+        if config_file.suffix == '.toml':
             with open(config_file, "rb") as f:
                 data = tomli.load(f)
         else:
@@ -72,8 +68,8 @@ class Common:
 
 
 class Logger:
-    def __init__(self, start_tensorboard=True):
-        if start_tensorboard is True:
+    def __init__(self, common_config):
+        if common_config['start_tensorboard'] is True:
             self.writer = SummaryWriter()
         else:
             self.writer = DummyLogger()
@@ -83,12 +79,19 @@ class Logger:
         self.actions_dir = Path(self.log_dir, 'actions/')
         Path(self.checkpoint_dir).mkdir(parents=True)
         Path(self.actions_dir).mkdir(parents=True)
+        # wandb
+        wandb.login(key=os.getenv('WANDB_API_KEY'))
+        self.wandb_run = wandb.init()
 
     def add_scalar(self, name: str, value, step: int = -1):
         self.writer.add_scalar(name, value, step)
+        if self.wandb_run:
+            wandb.log(data={name: value}, step=step, commit=False)
 
     def add_histogram(self, name: str, value, step: int = -1):
         self.writer.add_histogram(name, value, step)
+        if self.wandb_run:
+            wandb.log(data={name: wandb.Histogram(value)}, step=step, commit=False)
 
     def add_hparams(self, hparams: dict, metrics: dict = None):
         if metrics is None:
@@ -99,20 +102,34 @@ class Logger:
         from_path = Path(file_path)
         to_path = Path(self.log_dir, from_path.name)
         shutil.copy(from_path, to_path)
+        if self.wandb_run:
+            artifact = wandb.Artifact(name=from_path.name, type=from_path.suffix)
+            artifact.add_file(local_path=str(from_path), name=from_path.name)
+            self.wandb_run.log_artifact(artifact)
 
     def add_figure(self, name, fig: plt.Figure):
         self.writer.add_figure(name, fig)
+        if self.wandb_run:
+            wandb.log(data={name: wandb.Image(fig)}, commit=False)
 
     def add_pickle(self, name, element):
         to_path = Path(self.log_dir, f'{name}.pkl')
         with open(to_path, 'wb') as f:
             pickle.dump(element, f, protocol=5)
+        if self.wandb_run:
+            artifact = wandb.Artifact(name=name, type="pkl")
+            artifact.add_file(local_path=str(to_path), name=name)
+            self.wandb_run.log_artifact(artifact)
 
     def flush(self):
         self.writer.flush()
+        if self.wandb_run:
+            wandb.log(data={}, commit=True)
 
     def close(self):
         self.writer.close()
+        if self.wandb_run:
+            wandb.finish()
 
 
 class DummyLogger:

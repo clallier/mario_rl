@@ -12,37 +12,44 @@ import asyncio
 # from Tech with Tim:
 # https://www.youtube.com/watch?v=wQWWzBHUJWM
 
+# TODO:
+# - global config: pop size, neat_config_file, checkpoint_period, start_tensorboard
+# - wandb: more logs
+# - store best genome every n steps
+
 class NEATTrainer:
-    def __init__(self):
+    def __init__(self, common_config):
+        self.common_config = common_config
+        neat_config_path = Path(f'./config_files/{common_config.neat_config_file}')
+
         self.common = Common()
-        self.logger = Logger(True)
+        self.logger = Logger(common_config)
 
-        config_file_path = Path(Path(__file__).parent, 'config.v3.cfg')
-        self.logger.add_file(config_file_path)
+        self.logger.add_file(common_config)
+        self.logger.add_file(neat_config_path)
 
-        self.config = neat.config.Config(
+        self.neat_config = neat.config.Config(
             neat.DefaultGenome,
             neat.DefaultReproduction,
             neat.DefaultSpeciesSet,
             neat.DefaultStagnation,
-            config_file_path)
+            neat_config_path)
         self.train()
 
     def train(self):
-        p = neat.Population(self.config)
+        p = neat.Population(self.neat_config)
         stats_logger = StatisticsLogger(self.logger)
         p.add_reporter(stats_logger)
-        p.run(self.eval_genomes, n=None)
+        p.run(self.eval_genomes, n=self.common_config.pop_size)
         return stats_logger.save()
 
     def test(self, genome):
         sim = Sim(self.common)
-        agent = NeatAgent(genome, self.config, sim, True)
+        agent = NeatAgent(genome, self.neat_config, sim, True)
 
         while not agent.done:
             action = agent.choose_action(agent.state)
-            next_state, reward, done, info = agent.sim.step(action)
-            # agent.update_fitness(next_state, reward, done, info)
+            agent.sim.step(action)
 
     def eval_genomes(self, genomes, config):
         """

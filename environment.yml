@@ -34,3 +34,4 @@ dependencies:
       - tomli
       - neat-python
       - wandb
+      - python-dotenv

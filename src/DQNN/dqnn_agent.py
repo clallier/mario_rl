@@ -16,7 +16,7 @@ class DQNNAgent:
     def __init__(self, input_dims, output_dims, common: Common, logger: Logger):
         self.common = common
         self.logger = logger
-        self.config = Common.load_config_file("config.toml")
+        self.config = Common.load_config_file("../config_files/dqnn_config.toml")
         self.num_actions = output_dims
         self.learn_step_counter = 0
         # discount factor

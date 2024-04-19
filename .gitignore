@@ -166,3 +166,4 @@ _dump/
 checkpoints/
 runs/
 actions/*.mp4
+/wandb/*

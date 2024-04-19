@@ -1,3 +1,8 @@
+# num of episodes
+NUM_OF_EPISODES = 10_000
+# save period in episodes
+SAVE_FREQ = 1000
+
 # Learning rate
 learning_rate_start_factor = 1.0
 learning_rate = 0.01
