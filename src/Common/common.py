@@ -91,6 +91,7 @@ class Logger:
         self.actions_dir = Path(self.log_dir, 'actions/')
         Path(self.checkpoint_dir).mkdir(parents=True)
         Path(self.actions_dir).mkdir(parents=True)
+        print(f"log_dir: {Path(self.log_dir).resolve()}, {Path(self.log_dir).exists()}")
         # wandb
         wandb.login(key=os.getenv('WANDB_API_KEY'))
         self.wandb_run = wandb.init()
