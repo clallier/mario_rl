@@ -113,6 +113,7 @@ class Logger:
     def add_file(self, file_path):
         from_path = Path(file_path)
         to_path = Path(self.log_dir, from_path.name)
+        print(f"Logger.add_file:\n from: {from_path.resolve()}, {from_path.exists()},\n to {to_path.resolve()}, {to_path.exists()}")
         shutil.copy(from_path, to_path)
         if self.wandb_run:
             artifact = wandb.Artifact(name=from_path.name, type=from_path.suffix)
