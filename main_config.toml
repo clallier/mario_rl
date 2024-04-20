@@ -1,5 +1,5 @@
 algo = "NEAT"
 pop_size = 100
-neat_config_file = "config.v2.cfg"
+neat_config_file = "neat_config.v2.cfg"
 #checkpoint_period = 1000
 start_tensorboard = false
