@@ -25,7 +25,6 @@ class NEATTrainer:
         self.common = Common()
         self.logger = Logger(common_config)
 
-        # self.logger.add_file(common_config)
         self.logger.add_file(neat_config_path)
 
         self.neat_config = neat.config.Config(
