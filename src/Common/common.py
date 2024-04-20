@@ -112,6 +112,7 @@ class Logger:
         self.writer.add_hparams(hparams, metrics)
 
     def add_file(self, file_path):
+        print(f"Logger.add_file: from: {file_path})")
         from_path = Path(file_path)
         to_path = Path(self.log_dir, from_path.name)
         print(f"Logger.add_file: from: {from_path.resolve()}, {from_path.exists()})")
