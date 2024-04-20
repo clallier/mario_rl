@@ -52,6 +52,12 @@ class Common:
     load_dotenv()
 
     @staticmethod
+    def change_path():
+        root_dir = Path(__file__).parent.parent.parent
+        print(f"Common.change_path: chdir to {root_dir}")
+        os.chdir(root_dir)
+
+    @staticmethod
     def load_config_file(config_file):
         if not isinstance(config_file, PosixPath):
             config_file = Path(config_file)
