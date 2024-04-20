@@ -58,6 +58,12 @@ class Common:
         os.chdir(root_dir)
 
     @staticmethod
+    def get_file(file_path):
+        src_dir = Path(__file__).parent.parent
+        file_path = Path(src_dir, file_path)
+        print(f"Common.get_file: {file_path.resolve()}, exists: {file_path.exists()}")
+
+    @staticmethod
     def load_config_file(config_file):
         if not isinstance(config_file, PosixPath):
             config_file = Path(config_file)

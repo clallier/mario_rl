@@ -20,7 +20,7 @@ import asyncio
 class NEATTrainer:
     def __init__(self, common_config):
         self.common_config = common_config
-        neat_config_path = Path(f"./config_files/{common_config['neat_config_file']}")
+        neat_config_path = Common.get_file(f"./config_files/{common_config['neat_config_file']}")
 
         self.common = Common()
         self.logger = Logger(common_config)
