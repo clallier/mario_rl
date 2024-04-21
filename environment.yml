@@ -3,7 +3,7 @@
 # conda env create --file environment.yml
 # conda activate mario_rl
 #
-# conda deactivate && conda env remove --name mario_rl_py3.11 && conda env create --file environment.yml && conda activate mario_rl_py3.12
+# conda deactivate && conda env remove --name mario_rl_py3.11 && conda env create --file environment.yml && conda activate mario_rl_py3.11
 #
 # tensorboard --logdir runs
 
