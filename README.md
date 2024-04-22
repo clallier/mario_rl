@@ -4,10 +4,10 @@ An experiment on reinforcement learning
 
 ### Run
 
-Install the environment: `conda env create --file conda.yml`
-Activate the environment: `conda activate mario_rl`
+Install the environment: `conda env create --file ./mario_rl/environment.yml`
+Activate the environment: `conda activate mario_rl_py3.11`
 
-Run a training: `python main.py`
+Run a training: `python ./mario_rl/main.py`
 
 ### Tensorboard
 

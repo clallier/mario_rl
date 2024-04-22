@@ -1,5 +1,5 @@
 algo = "NEAT"
-gen_num = 500
+gen_num = 100
 neat_config_file = "neat_config.v3.cfg"
 #checkpoint_period = 1000
 start_tensorboard = false
