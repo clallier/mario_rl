@@ -29,8 +29,8 @@ class NeatAgent:
         return output
 
     def update_fitness(self, next_state, reward, done, info):
-        self.fitness_raw += reward['normalized']
-        self.genome.fitness += reward['raw']
+        self.fitness_raw += info['normalized_reward']
+        self.genome.fitness += info['reward']
         self.genome.flag_get = info['flag_get']
         self.state = next_state
         self.done = done

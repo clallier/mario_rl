@@ -64,11 +64,13 @@ class NormalizeFrame(Wrapper):
 
     def step(self, action):
         state, reward, done, info = self.env.step(action)
-        state = np.array(state) / 255.0
+        state = np.asarray(state, dtype=np.float32) / 255.0
         return state, reward, done, info
 
     def reset(self):
-        return self.env.reset()
+        state = self.env.reset()
+        state = np.asarray(state, dtype=np.float32) / 255.0
+        return state
 
 
 class NormalizeReward(Wrapper):
@@ -87,14 +89,13 @@ class NormalizeReward(Wrapper):
         self.returns = np.zeros(1)
         self.gamma = np.float32(gamma)
         self.epsilon = np.float32(epsilon)
-        self.reward = {'raw': 0.0, 'normalized': 0.0}
 
     def step(self, action):
         state, reward, done, info = self.env.step(action)
         self.returns = self.returns * self.gamma * (1 - done) + done
-        self.reward['raw'] = reward
-        self.reward['normalized'] = self.normalize(reward)
-        return state, self.reward, done, info
+        info['reward'] = reward
+        info['normalized_reward'] = self.normalize(reward)
+        return state, reward, done, info
 
     def normalize(self, reward):
         """Normalizes the rewards with the running mean rewards and their variance."""
@@ -102,33 +103,9 @@ class NormalizeReward(Wrapper):
         return np.float32(reward) / np.sqrt(self.return_rms.var + self.epsilon)
 
     def reset(self):
+        self.return_rms = RunningMeanStd(shape=())
+        self.returns = np.zeros(1)
         return self.env.reset()
-
-
-class SimpleRightReward(Wrapper):
-    def __init__(self, env):
-        super().__init__(env)
-        self.best_x = np.float32(0)
-
-    def step(self, action):
-        state, reward, done, info = self.env.step(action)
-        current_x = np.float32(info['x_pos'])
-
-        # reward is the relative distance to the best x
-        # should be avoid divide by 0
-        reward = 0
-        if self.best_x != 0:
-            reward = current_x / self.best_x
-
-        # update the best x
-        if current_x > self.best_x:
-            self.best_x = current_x
-
-        return state, reward, done, info
-
-    def reset(self):
-        return self.env.reset()
-
 
 def apply_wrappers(env):
     env = SkipFrame(env, skip=4)
@@ -138,5 +115,4 @@ def apply_wrappers(env):
     env = FrameStack(env, num_stack=4, lz4_compress=True)
     env = NormalizeFrame(env)
     env = NormalizeReward(env)
-    # env = SimpleRightReward(env)
     return env

@@ -4,16 +4,16 @@ import numpy as np
 import torch
 from src.Common.sim import Sim
 
-from src.Common.common import Common, Logger, Tracker
+from src.Common.common import Logger, Tracker
 from src.DQNN.dqnn_agent import DQNNAgent
 
 from pathlib import Path
 
 
 class DQNNTrainer:
-    def __init__(self, from_episode=0):
-        self.common = Common()
-        self.logger = Logger(start_tensorboard=False)
+    def __init__(self, common, from_episode=0):
+        self.common = common
+        self.logger = Logger(common)
         self.tracker = Tracker(self.logger)
 
         sim = Sim(self.common)

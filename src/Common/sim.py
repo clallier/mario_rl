@@ -5,7 +5,8 @@ from src.Common.wrapper import apply_wrappers
 
 class Sim:
     def __init__(self, common):
-        self.env = gym_super_mario_bros.make(common.ENV_NAME)
+        env_name = common.config.get('ENV_NAME')
+        self.env = gym_super_mario_bros.make(env_name)
         self.env.metadata['render.modes'] = ['human', 'rgb_array']
         self.env.metadata['apply_api_compatibility'] = True
 

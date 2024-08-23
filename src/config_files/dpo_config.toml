@@ -1,0 +1,29 @@
+total_timesteps = 500_000
+num_envs = 4
+num_steps = 2048
+anneal_lr = true
+lr = 5e-2
+#gae = true
+#gamma = 0.99
+#gae_lambda = 0.95
+
+# the discount factor gamma
+gamma = 0.99
+# the number of mini-batches
+num_minibatches = 4
+# the K epochs to update the policy
+update_epochs = 4
+# Toggles advantages normalization
+norm_adv = true
+# the surrogate clipping coefficient
+clip_coef = 0.2
+# Toggles whether or not to use a clipped loss for the value function, as per the paper
+clip_vloss = true
+# coefficient of the entropy
+ent_coef = 0.01
+# coefficient of the value function
+vf_coef = 0.5
+# the maximum norm for the gradient clipping
+max_grad_norm = 0.5
+# the target KL divergence threshold
+target_kl = 1e-3

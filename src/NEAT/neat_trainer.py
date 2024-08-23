@@ -18,12 +18,11 @@ import asyncio
 # - store best genome every n steps
 
 class NEATTrainer:
-    def __init__(self, common_config):
-        self.common_config = common_config
-        neat_config_path = Common.get_file(f"./config_files/{common_config['neat_config_file']}")
+    def __init__(self, common):
+        self.common = common
+        neat_config_path = Common.get_file(f"./config_files/{common.config.get('neat_config_file')}")
 
-        self.common = Common()
-        self.logger = Logger(common_config)
+        self.logger = Logger(common)
 
         self.logger.add_file(neat_config_path)
 
@@ -36,10 +35,11 @@ class NEATTrainer:
         self.train()
 
     def train(self):
+        gen_num = self.common.config.get("neat_gen_num")
         p = neat.Population(self.neat_config)
         stats_logger = StatisticsLogger(self.logger)
         p.add_reporter(stats_logger)
-        p.run(self.eval_genomes, n=self.common_config["gen_num"])
+        p.run(self.eval_genomes, n=gen_num)
         return stats_logger.save()
 
     def test(self, genome):

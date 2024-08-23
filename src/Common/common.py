@@ -25,34 +25,38 @@ def background(f):
     return wrapped
 
 
-def get_device():
-    device = 'cpu'
-    if torch.backends.mps.is_built():
-        device = 'mps'
-    elif torch.cuda.is_available():
-        device = 'cuda'
-    return device
-
-
-def set_seed(seed=0):
-    torch.manual_seed(seed)
-    random.seed(seed)
-    np.random.seed(0)
-
-
 class Common:
-    ENV_NAME = 'SuperMarioBros-1-1-v3'
     RIGHT_RUN = [
         ['right', 'B'],
         ['right', 'A', 'B']
     ]
-    device = get_device()
-    debug = False
-    set_seed()
-    load_dotenv()
 
-    @staticmethod
-    def change_path():
+    def __init__(self):
+        self.change_path()
+        self.config = Common.load_config_file("main_config.toml")
+        self.device = self.get_device()
+        self.debug = False
+        self.set_seed()
+        load_dotenv()
+
+    def get_device(self):
+        device = 'cpu'
+        if not self.config.get('use_gpu', True):
+            return device
+
+        if torch.backends.mps.is_built():
+            device = 'mps'
+        elif torch.cuda.is_available():
+            device = 'cuda'
+        return device
+
+    def set_seed(self):
+        seed = self.config.get('seed', 0)
+        torch.manual_seed(seed)
+        random.seed(seed)
+        np.random.seed(seed)
+
+    def change_path(self):
         root_dir = Path(__file__).parent.parent.parent
         print(f"Common.change_path: chdir to {root_dir}")
         os.chdir(root_dir)
@@ -81,21 +85,35 @@ class Common:
 
 
 class Logger:
-    def __init__(self, common_config):
-        if common_config['start_tensorboard'] is True:
+    def __init__(self, common):
+        start_tensorboard = common.config.get('start_tensorboard', False)
+        start_wandb = common.config.get('start_wandb', False)
+        algo = common.config.get('algo')
+        env_name = common.config.get('ENV_NAME')
+        project_name = f"{env_name}_{algo}"
+
+        # tensorboard
+        if start_tensorboard:
             self.writer = SummaryWriter()
         else:
             self.writer = DummyLogger()
+
+        # wandb
+        self.wandb_run = None
+        if start_wandb:
+            wandb.login(key=os.getenv('WANDB_API_KEY'))
+            self.wandb_run = wandb.init(
+                project=project_name,
+                sync_tensorboard=start_tensorboard,
+                monitor_gym=True,
+                config=common.config
+            )
 
         self.log_dir = self.writer.log_dir
         self.checkpoint_dir = Path(self.log_dir, 'checkpoints/')
         self.actions_dir = Path(self.log_dir, 'actions/')
         Path(self.checkpoint_dir).mkdir(parents=True)
         Path(self.actions_dir).mkdir(parents=True)
-        print(f"log_dir: {Path(self.log_dir).resolve()}, {Path(self.log_dir).exists()}")
-        # wandb
-        wandb.login(key=os.getenv('WANDB_API_KEY'))
-        self.wandb_run = wandb.init()
 
     def add_scalar(self, name: str, value, step: int = -1):
         self.writer.add_scalar(name, value, step)
@@ -113,11 +131,11 @@ class Logger:
         self.writer.add_hparams(hparams, metrics)
 
     def add_file(self, file_path):
-        print(f"Logger.add_file: from: {file_path}")
         from_path = Path(file_path)
         to_path = Path(self.log_dir, from_path.name)
         print(f"Logger.add_file: from: {from_path.resolve()}, {from_path.exists()})")
-        print(f"Logger.add_file: to {to_path.resolve()}, {to_path.exists()}")
+        print(f"Logger.add_file: to: {to_path.resolve()}")
+
         shutil.copy(from_path, to_path)
         if self.wandb_run:
             artifact = wandb.Artifact(name=from_path.name, type=from_path.suffix)
@@ -144,6 +162,7 @@ class Logger:
             wandb.log(data={}, commit=True)
 
     def close(self):
+        self.flush()
         self.writer.close()
         if self.wandb_run:
             wandb.finish()
