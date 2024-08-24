@@ -9,7 +9,8 @@
             "console": "integratedTerminal",
             "autoReload": {
                 "enable": true
-            }
+            },
+            "justMyCode": false
         },
         {
             "name": "Run from actions",

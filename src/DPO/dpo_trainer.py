@@ -39,7 +39,7 @@ class DPOTrainer:
         steps_envs_shape = (self.num_steps, self.num_envs)
         self.obs = torch.zeros(steps_envs_shape + obs_space_shape).to(device)
         self.actions = torch.zeros(steps_envs_shape + action_space_shape).to(device)
-        self.logprobs = torch.zeros(steps_envs_shape).to(device)
+        self.log_probs = torch.zeros(steps_envs_shape).to(device)
         self.rewards = torch.zeros(steps_envs_shape).to(device)
         self.dones = torch.zeros(steps_envs_shape).to(device)
         self.values = torch.zeros(steps_envs_shape).to(device)
@@ -50,7 +50,7 @@ class DPOTrainer:
         self.next_done = torch.zeros(self.num_envs).to(device)
         self.num_updates = self.total_timesteps // self.batch_size
 
-        nn_hidden_size = 512
+        nn_hidden_size = self.dpo_config.get('nn_hidden_size', 128)
         nn_output_size = action_space_n
         self.agent = DPOAgent(common, nn_hidden_size, nn_output_size, self.dpo_config)
 
@@ -76,14 +76,13 @@ class DPOTrainer:
                 with torch.no_grad():
                     # 7, 1, 4, 30, 30
                     obs = self.next_obs.unsqueeze(1)
-                    action, logprob, entropy, crit_value = self.agent.get_action_and_critic(obs)
-                self.actions[step] = action
-                self.logprobs[step] = logprob
-                self.values[step] = crit_value.flatten()
+                    actions, log_probs, entropies, critic_values = self.agent.get_action_and_critic(obs)
+                self.actions[step] = actions
+                self.log_probs[step] = log_probs
+                self.values[step] = critic_values.flatten()
 
                 # step the envs
-                # c'est quoi action ici? (quelle shape?) 
-                next_obs, reward, done, info = self.sims.step(action.cpu().numpy())
+                next_obs, reward, done, info = self.sims.step(actions.cpu().numpy())
                 self.rewards[step] = torch.tensor(reward, dtype=torch.float32).to(device)
                 self.next_obs = torch.tensor(next_obs, dtype=torch.float32).to(device)
                 self.next_done = torch.tensor(done, dtype=torch.float32).to(device)
@@ -104,7 +103,8 @@ class DPOTrainer:
 
         # bootstrap value if not done
         with torch.no_grad():
-            next_value = self.agent.get_critic_value(self.next_obs).reshape(1, -1)
+            obs = self.next_obs.unsqueeze(1)
+            next_value = self.agent.get_critic_value(obs).reshape(1, -1)
             returns = torch.zeros_like(self.rewards).to(device)
             for t in reversed(range(num_steps)):
                 if t == num_steps - 1:
@@ -116,8 +116,8 @@ class DPOTrainer:
                 returns[t] = self.rewards[t] + gamma * next_non_terminal * next_return
             advantages = returns - self.values
 
-        obs_space_shape = self.sims.env.single_observation_space.shape
-        action_space_shape = self.sims.env.single_action_space.shape
+        obs_space_shape = self.sims.single_observation_space.shape
+        action_space_shape = self.sims.single_action_space.shape
         update_epochs = self.dpo_config.get("update_epochs")
         num_minibatches = self.dpo_config.get("num_minibatches")
         minibatch_size = int(self.batch_size // num_minibatches)
@@ -135,7 +135,7 @@ class DPOTrainer:
 
         # flatten the batch
         flatten_obs = self.obs.reshape((-1,) + obs_space_shape)
-        flatten_logprobs = self.logprobs.reshape(-1)
+        flatten_log_probs = self.log_probs.reshape(-1)
         flatten_actions = self.actions.reshape((-1,) + action_space_shape)
         flatten_advantages = advantages.reshape(-1)
         flatten_returns = returns.reshape(-1)
@@ -149,12 +149,11 @@ class DPOTrainer:
             for start in range(0, self.batch_size, minibatch_size):
                 end = start + minibatch_size
                 sub_idx = rnd_idx[start:end]
-                new_action, new_logprob, entropy, new_value = \
-                    self.agent.get_action_and_critic(
-                        flatten_obs[sub_idx],
-                        flatten_actions.long()[sub_idx]
-                    )
-                log_ratio = new_logprob - flatten_logprobs[sub_idx]
+
+                obs = flatten_obs[sub_idx].unsqueeze(1)
+                actions = flatten_actions.long()[sub_idx]
+                new_action, new_log_prob, entropy, new_value = self.agent.get_action_and_critic(obs, actions)
+                log_ratio = new_log_prob - flatten_log_probs[sub_idx]
                 ratio = log_ratio.exp()
 
                 with torch.no_grad():
@@ -243,7 +242,7 @@ class DPOTrainer:
                         self.agent.get_action_and_critic(self.next_obs)
 
                 # step the envs
-                next_obs, reward, done, info = self.sims.env.step(action.cpu().numpy())
+                next_obs, reward, done, info = self.sims.step(action.cpu().numpy())
 
                 for item, i in zip(info, all_info):
                     if "episode" not in all_info[i].keys() and "episode" in item.keys():

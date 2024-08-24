@@ -20,19 +20,23 @@ class DPOAgent:
             nn.ReLU(),
         )
         
+        hidden_size_2 = nn_hidden_size // 2
+        hidden_size_4 = hidden_size_2 // 2
         self.critic = nn.Sequential(
-            nn.Linear(nn_hidden_size, 128),
+            nn.Linear(nn_hidden_size, hidden_size_2),
             nn.ReLU(),
-            nn.Linear(128, 64),
+            nn.Linear(hidden_size_2, hidden_size_4),
             nn.ReLU(),
-            nn.Linear(64, 1)
+            nn.Linear(hidden_size_4, 1),
+            nn.ReLU()
         )
         self.actor = nn.Sequential(
-            nn.Linear(nn_hidden_size, 128),
+            nn.Linear(nn_hidden_size, hidden_size_2),
             nn.ReLU(),
-            nn.Linear(128, 64),
+            nn.Linear(hidden_size_2, hidden_size_4),
             nn.ReLU(),
-            nn.Linear(64, nn_output_size)
+            nn.Linear(hidden_size_4, nn_output_size),
+            nn.ReLU()
         )
 
         self.network.to(self.common.device)
@@ -52,7 +56,8 @@ class DPOAgent:
         probs.probs = torch.clamp(probs.probs, 0)
         if action is None:
             action = probs.sample()
-        return action, probs.log_prob(action), probs.entropy(), self.critic(hidden)
+        critic_values = self.critic(hidden)
+        return action, probs.log_prob(action), probs.entropy(), critic_values 
 
     def set_lr(self, lrnow):
         self.optim.param_groups[0]['lr'] = lrnow

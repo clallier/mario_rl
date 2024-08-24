@@ -1,3 +1,4 @@
+nn_hidden_size = 512
 total_timesteps = 500_000
 num_envs = 7
 num_steps = 2048

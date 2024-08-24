@@ -33,6 +33,21 @@ class MultiSims:
         
         return states
     
+    
+    def step(self, actions):
+        loop = asyncio.get_event_loop()
+        looper = asyncio.gather(*[self.step_env(i, actions[i]) for i in range(self.num_envs)])
+        feedbacks = loop.run_until_complete(looper)
+        
+        next_obs, rewards, dones, infos = [], [], [], []
+        for f in feedbacks:
+            next_obs.append(f[0]) 
+            rewards.append(f[1])
+            dones.append(f[2])
+            infos.append(f[3])
+
+        return next_obs, rewards, dones, infos
+    
 
     @background
     def make_env(self, common, i):        
@@ -43,10 +58,13 @@ class MultiSims:
     @background
     def reset_env(self, i):        
         return self.envs[i].reset()
-
-
-    def step(self, action):
-        return self.env.step(action)
+    
+    @background
+    def step_env(self, i, action):
+        next_obs, reward, done, info = self.envs[i].step(action)
+        if done:
+            self.envs[i].reset()
+        return next_obs, reward, done, info
 
     def close(self):
         [self.envs[i].close() for i in range(self.num_envs)]
