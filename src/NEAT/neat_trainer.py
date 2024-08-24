@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from src.Common.sim import Sim
 from src.Common.common import Common, Logger, background
 import neat

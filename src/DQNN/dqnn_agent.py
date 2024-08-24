@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import numpy as np
-import tomli
 import torch
 from tensordict import TensorDict
 from torch import nn

@@ -1,5 +1,5 @@
 total_timesteps = 500_000
-num_envs = 4
+num_envs = 7
 num_steps = 2048
 anneal_lr = true
 lr = 5e-2

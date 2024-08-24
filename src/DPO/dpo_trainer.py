@@ -1,10 +1,13 @@
+import asyncio
 import time
 
+import gym
 import numpy as np
 import torch
 
-from src.Common.common import Logger
+from src.Common.common import Common, Logger, background
 from src.Common.sim import Sim
+from src.Common.vector_env_sim import MultiSims
 from src.DPO.dpo_agent import DPOAgent
 
 
@@ -15,7 +18,7 @@ class DPOTrainer:
         self.logger = Logger(common)
 
         # DPO config
-        dpo_config_path = common.get_file(f"./config_files/{common.config.get('dpo_config_file')}")
+        dpo_config_path = Common.get_file(f"./config_files/{common.config.get('dpo_config_file')}")
         self.dpo_config = common.load_config_file(dpo_config_path)
         self.logger.add_file(dpo_config_path)
 
@@ -26,10 +29,11 @@ class DPOTrainer:
         self.anneal_lr = self.dpo_config.get('anneal_lr', True)
         self.lr = self.dpo_config.get('lr', 0.001)
 
-        self.sims = Sim(self.common, self.num_envs)
+        self.sims = MultiSims(common, self.num_envs)
 
-        obs_space_shape = self.sims.env.single_observation_space.shape
-        action_space_shape = self.sims.env.single_action_space.shape
+        obs_space_shape = self.sims.single_observation_space.shape
+        action_space_shape = self.sims.single_action_space.shape
+        action_space_n = self.sims.single_action_space.n
         device = self.common.device
 
         steps_envs_shape = (self.num_steps, self.num_envs)
@@ -46,7 +50,9 @@ class DPOTrainer:
         self.next_done = torch.zeros(self.num_envs).to(device)
         self.num_updates = self.total_timesteps // self.batch_size
 
-        self.agent = DPOAgent(common, self.sims, self.dpo_config)
+        nn_hidden_size = 512
+        nn_output_size = action_space_n
+        self.agent = DPOAgent(common, nn_hidden_size, nn_output_size, self.dpo_config)
 
         self.train()
         self.eval()
@@ -68,15 +74,16 @@ class DPOTrainer:
 
                 # rollouts (no need for gradient)
                 with torch.no_grad():
-                    action, logprob, entropy, crit_value = self.agent.get_action_and_critic(
-                        self.next_obs
-                    )
+                    # 7, 1, 4, 30, 30
+                    obs = self.next_obs.unsqueeze(1)
+                    action, logprob, entropy, crit_value = self.agent.get_action_and_critic(obs)
                 self.actions[step] = action
                 self.logprobs[step] = logprob
                 self.values[step] = crit_value.flatten()
 
                 # step the envs
-                next_obs, reward, done, info = self.sims.env.step(action.cpu().numpy())
+                # c'est quoi action ici? (quelle shape?) 
+                next_obs, reward, done, info = self.sims.step(action.cpu().numpy())
                 self.rewards[step] = torch.tensor(reward, dtype=torch.float32).to(device)
                 self.next_obs = torch.tensor(next_obs, dtype=torch.float32).to(device)
                 self.next_done = torch.tensor(done, dtype=torch.float32).to(device)

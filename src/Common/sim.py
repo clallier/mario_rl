@@ -1,5 +1,6 @@
 import gym_super_mario_bros
 from nes_py.wrappers import JoypadSpace
+from src.Common.common import Common
 from src.Common.wrapper import apply_wrappers
 
 
@@ -10,7 +11,7 @@ class Sim:
         self.env.metadata['render.modes'] = ['human', 'rgb_array']
         self.env.metadata['apply_api_compatibility'] = True
 
-        self.env = JoypadSpace(self.env, common.RIGHT_RUN)
+        self.env = JoypadSpace(self.env, Common.RIGHT_RUN)
         self.env = apply_wrappers(self.env)
         self.reset()
 
@@ -25,3 +26,4 @@ class Sim:
 
     def close(self):
         self.env.close()
+

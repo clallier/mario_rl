@@ -1,7 +1,7 @@
 import numpy as np
 from gym import Wrapper
 from gym.wrappers import GrayScaleObservation, ResizeObservation, \
-    FrameStack
+    FrameStack, RecordEpisodeStatistics
 
 
 class RunningMeanStd:
@@ -115,4 +115,5 @@ def apply_wrappers(env):
     env = FrameStack(env, num_stack=4, lz4_compress=True)
     env = NormalizeFrame(env)
     env = NormalizeReward(env)
+    env = RecordEpisodeStatistics(env)
     return env
