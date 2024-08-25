@@ -5,8 +5,7 @@ import numpy as np
 from src.Common.common import background
 from src.Common.sim import Sim
 
-
-class MultiSims:
+class AsyncMultiSims:
     def __init__(self, common, num_envs=1):
         self.num_envs = num_envs
         loop = asyncio.get_event_loop()
@@ -48,6 +47,12 @@ class MultiSims:
 
         return next_obs, rewards, dones, infos
     
+    def close(self):
+        loop = asyncio.get_event_loop()
+        looper = asyncio.gather(*[self.close_env(i) for i in range(self.num_envs)])
+        loop.run_until_complete(looper)
+    
+
 
     @background
     def make_env(self, common, i):        
@@ -66,6 +71,7 @@ class MultiSims:
             self.envs[i].reset()
         return next_obs, reward, done, info
 
-    def close(self):
-        [self.envs[i].close() for i in range(self.num_envs)]
+    @background
+    def close_env(self, i):        
+        return self.envs[i].close()
         

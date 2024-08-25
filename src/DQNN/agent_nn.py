@@ -1,6 +1,6 @@
-import numpy as np
-import torch
 from torch import nn
+
+from src.Common.conv_calc import debug_get_conv_out
 
 
 class AgentNN(nn.Module):
@@ -21,7 +21,7 @@ class AgentNN(nn.Module):
             nn.ReLU(),
         )
 
-        conv_out_size = self._get_conv_out(input_shape)
+        conv_out_size = debug_get_conv_out(self.conv, input_shape)
         # self.network = nn.Sequential(
         #     self.conv,
         #     nn.Flatten(),
@@ -34,7 +34,8 @@ class AgentNN(nn.Module):
             nn.Flatten(),
             nn.Linear(conv_out_size, 64),
             nn.ReLU(),
-            nn.Linear(64, n_actions)
+            nn.Linear(64, n_actions),
+            nn.ReLU()
         )
 
         if freeze:
@@ -44,10 +45,6 @@ class AgentNN(nn.Module):
         self.to(device)
         self.conv.to(device)
         self.network.to(device)
-
-    def _get_conv_out(self, shape):
-        o = self.conv(torch.zeros(1, *shape))
-        return int(np.prod(o.size()))
 
     def freeze(self):
         for p in self.network.parameters():

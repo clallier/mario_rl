@@ -1,13 +1,10 @@
-import asyncio
 import time
 
-import gym
 import numpy as np
 import torch
 
-from src.Common.common import Common, Logger, background
-from src.Common.sim import Sim
-from src.Common.vector_env_sim import MultiSims
+from src.Common.common import Common, Logger
+from src.Common.async_multi_sim import AsyncMultiSims
 from src.DPO.dpo_agent import DPOAgent
 
 
@@ -29,7 +26,7 @@ class DPOTrainer:
         self.anneal_lr = self.dpo_config.get('anneal_lr', True)
         self.lr = self.dpo_config.get('lr', 0.001)
 
-        self.sims = MultiSims(common, self.num_envs)
+        self.sims = AsyncMultiSims(common, self.num_envs)
 
         obs_space_shape = self.sims.single_observation_space.shape
         action_space_shape = self.sims.single_action_space.shape

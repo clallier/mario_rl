@@ -12,33 +12,51 @@ from src.DQNN.agent_nn import AgentNN
 
 
 class DQNNAgent:
-    def __init__(self, input_dims, output_dims, common: Common, logger: Logger):
-        self.common = common
+    def __init__(self, input_dims, output_dims, ddqn_config: dict, common: Common, logger: Logger):
         self.logger = logger
-        self.config = Common.load_config_file("../config_files/dqnn_config.toml")
+        self.config = ddqn_config
         self.num_actions = output_dims
         self.learn_step_counter = 0
+        # device
+        self.device = common.device
+        # num episodes
+        self.num_episodes = self.config.get('NUM_OF_EPISODES')
         # discount factor
-        self.gamma = self.config['gamma']
+        self.gamma = self.config.get('gamma')
         # batch size
-        self.batch_size = self.config['batch_size']
+        self.batch_size = self.config.get('batch_size')
         # exploration rate
-        self.epsilon = self.config['epsilon_init']
+        self.epsilon = self.config.get('epsilon_init')
+        # learning_rate
+        self.learning_rate = self.config.get('learning_rate')
+        self.lr_start_factor = self.config.get('learning_rate_start_factor')
+        self.lr_end_factor = self.config.get('learning_rate_end_factor')
+        # epsilon
+        self.epsilon_decay = self.config.get('epsilon_decay')
+        self.epsilon_min = self.config.get('epsilon_min')
+        # sync_network_rate     
+        self.sync_network_rate = self.config.get('sync_network_rate')
+
+        # keys
+        self.keys = ('state', 'action', 'reward', 'next_state', 'done')
+
+        
         # Networks
         self.online_network = AgentNN(
-            input_dims, output_dims, device=self.common.device)
+            input_dims, output_dims, device=self.device)
         self.target_network = AgentNN(
-            input_dims, output_dims, freeze=True, device=self.common.device)
+            input_dims, output_dims, freeze=True, device=self.device)
 
         # Optimizer and loss
         self.optimizer = torch.optim.Adam(
             self.online_network.parameters(),
-            lr=self.config['learning_rate'])
+            lr=self.learning_rate
+        )
 
         self.scheduler = lr_scheduler.LinearLR(self.optimizer,
-                                               start_factor=self.config['learning_rate_start_factor'],
-                                               end_factor=self.config['learning_rate_end_factor'],
-                                               total_iters=self.common.NUM_OF_EPISODES)
+                                               start_factor=self.lr_start_factor,
+                                               end_factor=self.lr_end_factor,
+                                               total_iters=self.num_episodes)
         # self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=self.config.learning_rate_decay)
 
         self.loss = nn.SmoothL1Loss()  # Huber loss # nn.MSELoss()
@@ -56,12 +74,12 @@ class DQNNAgent:
             return np.random.choice(self.num_actions)
         else:
             state = torch.tensor(np.array(state), dtype=torch.float32)
-            state = state.unsqueeze(0).to(self.common.device)
+            state = state.unsqueeze(0).to(self.device)
             q_values = self.online_network(state)
             return q_values.argmax().item()
 
     def decay_epsilon(self):
-        self.epsilon = max(self.epsilon * self.config['epsilon_decay'], self.config['epsilon_min'])
+        self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
 
     def save_state(self, path):
         torch.save({
@@ -89,20 +107,19 @@ class DQNNAgent:
         # force sync networks?
         self.target_network.load_state_dict(model_state_dict)
 
-    def store_in_memory(self, state, action, reward, next_state, done):
-        if isinstance(reward, dict) and 'normalized' in reward:
-            reward = reward['normalized'] 
+    def store_in_memory(self, state, action, info, next_state, done):
+        reward = info.get('reward')
 
         self.replay_buffer.add(TensorDict({
-            "state": torch.tensor(np.array(state), dtype=torch.float32),
+            "state": torch.tensor(state, dtype=torch.float32),
             "action": torch.tensor(action),
             "reward": torch.tensor(reward),
-            "next_state": torch.tensor(np.array(next_state), dtype=torch.float32),
+            "next_state": torch.tensor(next_state, dtype=torch.float32),
             "done": torch.tensor(done)
         }, batch_size=[]))
 
     def sync_networks(self):
-        if self.learn_step_counter % self.config['sync_network_rate'] == 0 and self.learn_step_counter > 0:
+        if self.learn_step_counter % self.sync_network_rate == 0 and self.learn_step_counter > 0:
             self.logger.add_scalar("sync", 1, self.learn_step_counter)
             self.target_network.load_state_dict(self.online_network.state_dict())
 
@@ -117,13 +134,10 @@ class DQNNAgent:
         # reset gradients
         self.optimizer.zero_grad()
         # get some samples from replay buffer
-        samples = self.replay_buffer.sample(self.batch_size).to(self.common.device)
+        samples = self.replay_buffer.sample(self.batch_size).to(self.device)
 
         # get q values for current state
-        keys = ('state', 'action', 'reward', 'next_state', 'done')
-
-        states, actions, rewards, next_states, dones = [
-            samples[key] for key in keys]
+        states, actions, rewards, next_states, dones = [samples[key] for key in self.keys]
 
         # Shape is (batch_size, n_actions)
         predicted_q_values = self.online_network(states)
@@ -150,16 +164,3 @@ class DQNNAgent:
         self.decay_epsilon()
         self.logger.add_scalar("epsilon", self.epsilon, self.learn_step_counter)
         self.learn_step_counter += 1
-
-    def debug_nn_size(self, state, device='mps'):
-        x0 = torch.as_tensor(np.array(state)).float().to(device)
-        print("input shape:", x0.shape)
-
-        with torch.no_grad():
-            x = x0
-            for layer in self.online_network.conv:
-                x = layer(x)
-                print(type(layer), x.shape)
-            params = (sum(
-                p.numel() for p in self.online_network.network.parameters() if p.requires_grad))
-            print("params: ", params)

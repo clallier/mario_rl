@@ -1,6 +1,27 @@
 import math
 from typing import Union
 
+import numpy as np
+import torch
+
+def debug_nn_size(network, state):
+    x0 = torch.as_tensor(np.array(state)).float()
+    print("input shape:", x0.shape)
+
+    with torch.no_grad():
+        x = x0
+        for layer in network:
+            x = layer(x)
+            print(type(layer), x.shape)
+
+def debug_count_params(network):
+        params = (sum(p.numel() for p in network.parameters() if p.requires_grad))
+        print("params: ", params)
+
+def debug_get_conv_out(conv_nn, shape):
+    o = conv_nn(torch.zeros(1, *shape))
+    return int(np.prod(o.size()))
+
 # from https://github.com/pytorch/pytorch/issues/79512
 def conv_2d_return_shape(
         dim: tuple[int, int],

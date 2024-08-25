@@ -209,16 +209,14 @@ class Tracker:
     def init_reward(self):
         self.rewards = 0
 
-    def store_action(self, action, reward, episode):
+    def store_action(self, action:int, info:dict, episode:int):
+        reward = info.get('reward')
+        normalized_reward = info.get('normalized_reward')
         self.actions.append(action)
-        if isinstance(reward, dict) and 'normalized' in reward:
-            self.rewards += reward['raw']
-            self.logger.add_scalar("reward_raw", reward['raw'], episode)
-            self.logger.add_scalar("reward_normalized", reward['normalized'], episode)
-        else:
-            self.rewards += reward
-            self.logger.add_scalar("reward_raw", reward, episode)
-
+        self.rewards += reward
+        self.logger.add_scalar("reward", reward, episode)
+        self.logger.add_scalar("normalized_reward", normalized_reward, episode)
+        
     def end_of_episode(self, info, episode, save_actions=None):
         get_flag = info.get('flag_get', False) if info is not None else False
         self.d.append(self.rewards)
