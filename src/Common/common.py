@@ -26,10 +26,7 @@ def background(f):
 
 
 class Common:
-    RIGHT_RUN = [
-        ['right', 'B'],
-        ['right', 'A', 'B']
-    ]
+    RIGHT_RUN = [["right", "B"], ["right", "A", "B"]]
 
     def __init__(self):
         self.change_path()
@@ -40,18 +37,18 @@ class Common:
         load_dotenv()
 
     def get_device(self):
-        device = 'cpu'
-        if not self.config.get('use_gpu', True):
+        device = "cpu"
+        if not self.config.get("use_gpu", True):
             return device
 
         if torch.backends.mps.is_built():
-            device = 'mps'
+            device = "mps"
         elif torch.cuda.is_available():
-            device = 'cuda'
+            device = "cuda"
         return device
 
     def set_seed(self):
-        seed = self.config.get('seed', 0)
+        seed = self.config.get("seed", 0)
         torch.manual_seed(seed)
         random.seed(seed)
         np.random.seed(seed)
@@ -72,24 +69,26 @@ class Common:
     def load_config_file(config_file):
         if not isinstance(config_file, PosixPath):
             config_file = Path(config_file)
-        print(f"Common.load_config_file: {config_file.resolve()}, exists: {config_file.exists()}")
+        print(
+            f"Common.load_config_file: {config_file.resolve()}, exists: {config_file.exists()}"
+        )
 
-        if config_file.suffix == '.toml':
+        if config_file.suffix == ".toml":
             with open(config_file, "rb") as f:
                 data = tomli.load(f)
         else:
             data = ConfigParser()
-            data.read(str(config_file.resolve()), 'UTF-8')
+            data.read(str(config_file.resolve()), "UTF-8")
             data = data._sections
         return data
 
 
 class Logger:
     def __init__(self, common):
-        start_tensorboard = common.config.get('start_tensorboard', False)
-        start_wandb = common.config.get('start_wandb', False)
-        algo = common.config.get('algo')
-        env_name = common.config.get('ENV_NAME')
+        start_tensorboard = common.config.get("start_tensorboard", False)
+        start_wandb = common.config.get("start_wandb", False)
+        algo = common.config.get("algo")
+        env_name = common.config.get("ENV_NAME")
         project_name = f"{env_name}_{algo}"
 
         # tensorboard
@@ -101,17 +100,17 @@ class Logger:
         # wandb
         self.wandb_run = None
         if start_wandb:
-            wandb.login(key=os.getenv('WANDB_API_KEY'))
+            wandb.login(key=os.getenv("WANDB_API_KEY"))
             self.wandb_run = wandb.init(
                 project=project_name,
                 sync_tensorboard=start_tensorboard,
                 monitor_gym=True,
-                config=common.config
+                config=common.config,
             )
 
         self.log_dir = self.writer.log_dir
-        self.checkpoint_dir = Path(self.log_dir, 'checkpoints/')
-        self.actions_dir = Path(self.log_dir, 'actions/')
+        self.checkpoint_dir = Path(self.log_dir, "checkpoints/")
+        self.actions_dir = Path(self.log_dir, "actions/")
         Path(self.checkpoint_dir).mkdir(parents=True)
         Path(self.actions_dir).mkdir(parents=True)
 
@@ -148,8 +147,8 @@ class Logger:
             wandb.log(data={name: wandb.Image(fig)}, commit=False)
 
     def add_pickle(self, name, element):
-        to_path = Path(self.log_dir, f'{name}.pkl')
-        with open(to_path, 'wb') as f:
+        to_path = Path(self.log_dir, f"{name}.pkl")
+        with open(to_path, "wb") as f:
             pickle.dump(element, f, protocol=5)
         if self.wandb_run:
             artifact = wandb.Artifact(name=name, type="pkl")
@@ -170,11 +169,14 @@ class Logger:
 
 class DummyLogger:
     def __init__(self):
-        date_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+        date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.log_dir = Path(Path.cwd(), "runs", date_str)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        log_file_path = Path(self.log_dir, "run.log")
+        self.log_file = open(log_file_path, "w+")
 
     def add_scalar(self, name: str, value, step: int):
-        print(f"step: {step}, {name}: {value}")
+        self.log_file.write(f"step: {step}, {name}: {value}\n")
 
     def add_histogram(self, name: str, value, step: int):
         pass
@@ -183,19 +185,21 @@ class DummyLogger:
         pass
 
     def add_figure(self, name, fig: plt.Figure):
-        fig.savefig(Path(self.log_dir, f'{name}.svg'))
+        fig.savefig(Path(self.log_dir, f"{name}.svg"))
 
     def flush(self):
-        pass
+        if self.log_file:
+            self.log_file.flush()
 
     def close(self):
-        pass
+        if self.log_file:
+            self.log_file.close()
 
 
 class Tracker:
     def __init__(self, logger: Logger):
         self.logger = logger
-        # accumulated rewards for the current episode 
+        # accumulated rewards for the current episode
         self.rewards = 0
         # current episode actions (for debugging)
         self.actions = []
@@ -209,16 +213,16 @@ class Tracker:
     def init_reward(self):
         self.rewards = 0
 
-    def store_action(self, action:int, info:dict, episode:int):
-        reward = info.get('reward')
-        normalized_reward = info.get('normalized_reward')
+    def store_action(self, action: int, info: dict, episode: int):
+        reward = info.get("reward")
+        normalized_reward = info.get("normalized_reward")
         self.actions.append(action)
         self.rewards += reward
         self.logger.add_scalar("reward", reward, episode)
         self.logger.add_scalar("normalized_reward", normalized_reward, episode)
-        
+
     def end_of_episode(self, info, episode, save_actions=None):
-        get_flag = info.get('flag_get', False) if info is not None else False
+        get_flag = info.get("flag_get", False) if info is not None else False
         self.d.append(self.rewards)
         self.flag_get_sum += get_flag
         avg_10 = mean(self.d) if len(self.d) > 2 else -1
@@ -226,7 +230,9 @@ class Tracker:
         if self.rewards > self.best_reward:
             self.best_reward = self.rewards
             if save_actions is None:
-                print(f'"WARNING tracker.end_of_episode: save_actions is None, skipping save_actions"')
+                print(
+                    f'"WARNING tracker.end_of_episode: save_actions is None, skipping save_actions"'
+                )
             else:
                 save_actions(self.actions, episode, self.rewards)
 
@@ -235,5 +241,7 @@ class Tracker:
         self.logger.add_scalar("std_10", std_10, episode)
         self.logger.add_scalar("flag_get_sum", self.flag_get_sum, episode)
 
-        print(f'Episode {episode}, rewards: {self.rewards:.1f}, best so far: {self.best_reward:.1f}, '
-              f'mean_10: {avg_10:.1f}, std_10: {std_10:.1f}')
+        print(
+            f"Episode {episode}, rewards: {self.rewards:.1f}, best so far: {self.best_reward:.1f}, "
+            f"mean_10: {avg_10:.1f}, std_10: {std_10:.1f}"
+        )

@@ -3,6 +3,9 @@ NUM_OF_EPISODES = 10_000
 # save period in episodes
 SAVE_FREQ = 1000
 
+# neural network
+nn_nn_hidden_size = 512
+
 # Learning rate
 learning_rate_start_factor = 1.0
 learning_rate = 0.01
@@ -16,6 +19,6 @@ sync_network_rate = 4000
 # discount factor
 gamma = 0.99
 # exploration rate
-epsilon_init = 1.0
+epsilon_init = 0.8
 epsilon_decay = 0.99999972
 epsilon_min = 0.1

@@ -17,7 +17,9 @@ class DQNNTrainer:
         self.tracker = Tracker(self.logger)
 
         # DQNN config
-        dqnn_config_path = Common.get_file(f"./config_files/{common.config.get('dqnn_config_file')}")
+        dqnn_config_path = Common.get_file(
+            f"./config_files/{common.config.get('dqnn_config_file')}"
+        )
         self.dqnn_config = common.load_config_file(dqnn_config_path)
         self.logger.add_file(dqnn_config_path)
 
@@ -29,11 +31,11 @@ class DQNNTrainer:
         self.load_agent_state(agent, from_episode)
 
         state = sim.reset()
-        debug_nn_size(agent.online_network.conv, state)
+        debug_nn_size(agent.online_network.network, state)
         debug_count_params(agent.online_network.network)
 
         for episode in range(from_episode, self.num_episodes + 1):
-            print(f'Episode {episode} started')
+            print(f"Episode {episode} started")
             done = False
             state = sim.reset()
             self.tracker.init_reward()
@@ -51,7 +53,9 @@ class DQNNTrainer:
 
             # end of current episode
             current_lr = agent.scheduler.get_last_lr()[0]
-            self.logger.add_scalar("learning_rate", current_lr, agent.learn_step_counter)
+            self.logger.add_scalar(
+                "learning_rate", current_lr, agent.learn_step_counter
+            )
             agent.scheduler.step()
 
             self.save_agent_state(agent, episode)
@@ -64,20 +68,26 @@ class DQNNTrainer:
         self.logger.close()
 
     def create_agent(self, sim):
-        input_dims = sim.single_observation_space.shape
-        output_dims = sim.single_action_space.n
-        return DQNNAgent(input_dims, output_dims, self.dqnn_config, self.common, self.logger)
+        nn_hidden_size = self.dqnn_config.get("nn_hidden_size", 512)
+        nn_output_size = sim.single_action_space.n
+        return DQNNAgent(
+            nn_hidden_size, nn_output_size, self.dqnn_config, self.common, self.logger
+        )
 
     def save_agent_state(self, agent, episode):
         if episode % self.save_freq == 0:
             path = Path(self.logger.checkpoint_dir, f"agent_checkpoint_{episode}.pt")
             if path.exists():
-                print(f"WARNING save_agent_state: path already exists, skipping save: {path}")
+                print(
+                    f"WARNING save_agent_state: path already exists, skipping save: {path}"
+                )
             else:
                 agent.save_state(path)
 
     def save_actions(self, actions, episode, rewards):
-        path = Path(self.logger.actions_dir, f"agent_actions_ep:{episode}_rw:{int(rewards)}.pt")
+        path = Path(
+            self.logger.actions_dir, f"agent_actions_ep:{episode}_rw:{int(rewards)}.pt"
+        )
         if not self.logger.actions_dir.exists():
             print(f"WARNING save_actions: path doesn't exists, skipping save: {path}")
         else:

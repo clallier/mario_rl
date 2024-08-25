@@ -1,7 +1,11 @@
 import numpy as np
 from gym import Wrapper
-from gym.wrappers import GrayScaleObservation, ResizeObservation, \
-    FrameStack, RecordEpisodeStatistics
+from gym.wrappers import (
+    GrayScaleObservation,
+    ResizeObservation,
+    FrameStack,
+    RecordEpisodeStatistics,
+)
 
 
 class RunningMeanStd:
@@ -65,11 +69,13 @@ class NormalizeFrame(Wrapper):
     def step(self, action):
         state, reward, done, info = self.env.step(action)
         state = np.asarray(state, dtype=np.float32) / 255.0
+        state = np.expand_dims(state, axis=0)
         return state, reward, done, info
 
     def reset(self):
         state = self.env.reset()
         state = np.asarray(state, dtype=np.float32) / 255.0
+        state = np.expand_dims(state, axis=0)
         return state
 
 
@@ -93,8 +99,8 @@ class NormalizeReward(Wrapper):
     def step(self, action):
         state, reward, done, info = self.env.step(action)
         self.returns = self.returns * self.gamma * (1 - done) + done
-        info['reward'] = reward
-        info['normalized_reward'] = self.normalize(reward)
+        info["reward"] = reward
+        info["normalized_reward"] = self.normalize(reward)
         return state, reward, done, info
 
     def normalize(self, reward):
@@ -106,6 +112,7 @@ class NormalizeReward(Wrapper):
         self.return_rms = RunningMeanStd(shape=())
         self.returns = np.zeros(1)
         return self.env.reset()
+
 
 def apply_wrappers(env):
     env = SkipFrame(env, skip=4)
