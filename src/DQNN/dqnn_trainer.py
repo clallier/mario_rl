@@ -31,7 +31,7 @@ class DQNNTrainer:
         self.load_agent_state(agent, from_episode)
 
         state = sim.reset()
-        debug_nn_size(agent.online_network.network, state)
+        debug_nn_size(agent.online_network.network, state, common.device)
         debug_count_params(agent.online_network.network)
 
         for episode in range(from_episode, self.num_episodes + 1):

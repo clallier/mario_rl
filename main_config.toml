@@ -1,6 +1,6 @@
 seed = 0
 debug = false
-use_gpu = false
+use_gpu = true
 
 # env_name: 'CartPole-v1', 'SuperMarioBros-1-1-v3'
 ENV_NAME = "SuperMarioBros-1-1-v3"
@@ -22,4 +22,3 @@ start_wandb = false
 
 # specific config
 neat_gen_num = 2
-#checkpoint_period = 1000

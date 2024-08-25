@@ -94,8 +94,4 @@ class AgentNN(nn.Module):
             p.requires_grad = False
 
     def forward(self, x):
-        # print("### Hey from forward :)")
-        # print("x size: ", x.size())
-        # print("x type: ", x.dtype, "x device: ", x.device)
-        # print("self device: ", self.device)
         return self.network(x)

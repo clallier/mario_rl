@@ -66,9 +66,8 @@ class DQNNAgent:
             end_factor=self.lr_end_factor,
             total_iters=self.num_episodes,
         )
-        # self.scheduler = lr_scheduler.ExponentialLR(self.optimizer, gamma=self.config.learning_rate_decay)
 
-        self.loss = nn.SmoothL1Loss()  # Huber loss # nn.MSELoss()
+        self.loss = nn.SmoothL1Loss()  # Huber loss # nn.MSELoss
 
         # Replay buffer
         self.replay_buffer_capacity = 100_000

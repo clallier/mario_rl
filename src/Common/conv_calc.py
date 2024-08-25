@@ -3,10 +3,11 @@ from typing import Union
 
 import numpy as np
 import torch
+from torch import nn
 
 
-def debug_nn_size(network, state):
-    x0 = torch.as_tensor(np.array(state)).float()
+def debug_nn_size(network: nn.Module, state: np.array, device):
+    x0 = torch.as_tensor(np.array(state)).float().to(device)
     print("input shape:", x0.shape)
 
     with torch.no_grad():
