@@ -15,20 +15,22 @@ class DPOTrainer:
         self.logger = Logger(common)
 
         # DPO config
-        dpo_config_path = Common.get_file(f"./config_files/{common.config.get('dpo_config_file')}")
+        dpo_config_path = Common.get_file(
+            f"./config_files/{common.config.get('dpo_config_file')}"
+        )
         self.dpo_config = common.load_config_file(dpo_config_path)
         self.logger.add_file(dpo_config_path)
 
-        self.total_timesteps = self.dpo_config.get('total_timesteps', 10_000)
-        self.num_steps = self.dpo_config.get('num_steps', 64)
-        self.num_envs = self.dpo_config.get('num_envs', 1)
+        self.total_timesteps = self.dpo_config.get("total_timesteps", 10_000)
+        self.num_steps = self.dpo_config.get("num_steps", 64)
+        self.num_envs = self.dpo_config.get("num_envs", 1)
         self.batch_size = self.num_envs * self.num_steps
-        self.anneal_lr = self.dpo_config.get('anneal_lr', True)
-        self.lr = self.dpo_config.get('lr', 0.001)
+        self.anneal_lr = self.dpo_config.get("anneal_lr", True)
+        self.lr = self.dpo_config.get("lr", 0.001)
 
         self.sims = AsyncMultiSims(common, self.num_envs)
 
-        obs_space_shape = self.sims.single_observation_space.shape
+        obs_space_shape = (1,) + self.sims.single_observation_space.shape
         action_space_shape = self.sims.single_action_space.shape
         action_space_n = self.sims.single_action_space.n
         device = self.common.device
@@ -47,7 +49,7 @@ class DPOTrainer:
         self.next_done = torch.zeros(self.num_envs).to(device)
         self.num_updates = self.total_timesteps // self.batch_size
 
-        nn_hidden_size = self.dpo_config.get('nn_hidden_size', 128)
+        nn_hidden_size = self.dpo_config.get("nn_hidden_size", 128)
         nn_output_size = action_space_n
         self.agent = DPOAgent(common, nn_hidden_size, nn_output_size, self.dpo_config)
 
@@ -72,23 +74,30 @@ class DPOTrainer:
                 # rollouts (no need for gradient)
                 with torch.no_grad():
                     # 7, 1, 4, 30, 30
-                    obs = self.next_obs.unsqueeze(1)
-                    actions, log_probs, entropies, critic_values = self.agent.get_action_and_critic(obs)
+                    actions, log_probs, entropies, critic_values = (
+                        self.agent.get_action_and_critic(self.next_obs)
+                    )
                 self.actions[step] = actions
                 self.log_probs[step] = log_probs
                 self.values[step] = critic_values.flatten()
 
                 # step the envs
                 next_obs, reward, done, info = self.sims.step(actions.cpu().numpy())
-                self.rewards[step] = torch.tensor(reward, dtype=torch.float32).to(device)
+                self.rewards[step] = torch.tensor(reward, dtype=torch.float32).to(
+                    device
+                )
                 self.next_obs = torch.tensor(next_obs, dtype=torch.float32).to(device)
                 self.next_done = torch.tensor(done, dtype=torch.float32).to(device)
 
                 for item in info:
                     if "episode" in item.keys():
                         e = item["episode"]
-                        self.logger.add_scalar("episodic_return", e["r"], self.global_step)
-                        self.logger.add_scalar("episodic_length", e["l"], self.global_step)
+                        self.logger.add_scalar(
+                            "episodic_return", e["r"], self.global_step
+                        )
+                        self.logger.add_scalar(
+                            "episodic_length", e["l"], self.global_step
+                        )
 
             self.optimize_policy()
             self.logger.flush()
@@ -100,8 +109,7 @@ class DPOTrainer:
 
         # bootstrap value if not done
         with torch.no_grad():
-            obs = self.next_obs.unsqueeze(1)
-            next_value = self.agent.get_critic_value(obs).reshape(1, -1)
+            next_value = self.agent.get_critic_value(self.next_obs).reshape(1, -1)
             returns = torch.zeros_like(self.rewards).to(device)
             for t in reversed(range(num_steps)):
                 if t == num_steps - 1:
@@ -149,7 +157,9 @@ class DPOTrainer:
 
                 obs = flatten_obs[sub_idx].unsqueeze(1)
                 actions = flatten_actions.long()[sub_idx]
-                new_action, new_log_prob, entropy, new_value = self.agent.get_action_and_critic(obs, actions)
+                new_action, new_log_prob, entropy, new_value = (
+                    self.agent.get_action_and_critic(obs, actions)
+                )
                 log_ratio = new_log_prob - flatten_log_probs[sub_idx]
                 ratio = log_ratio.exp()
 
@@ -157,15 +167,21 @@ class DPOTrainer:
                     # calculate approx_kl http://joschu.net/blog/kl-approx.html
                     old_approx_kl = (-log_ratio).mean()
                     approx_kl = ((ratio - 1) - log_ratio).mean()
-                    clip_fracs += [((ratio - 1.0).abs() > clip_coef).float().mean().item()]
+                    clip_fracs += [
+                        ((ratio - 1.0).abs() > clip_coef).float().mean().item()
+                    ]
 
                 sub_advantages = flatten_advantages[sub_idx]
                 if norm_adv:
-                    sub_advantages = (sub_advantages - sub_advantages.mean()) / (sub_advantages.std() + 1e-8)
+                    sub_advantages = (sub_advantages - sub_advantages.mean()) / (
+                        sub_advantages.std() + 1e-8
+                    )
 
                 # Policy loss
                 pg_loss1 = -sub_advantages * ratio
-                pg_loss2 = -sub_advantages * torch.clamp(ratio, 1 - clip_coef, 1 + clip_coef)
+                pg_loss2 = -sub_advantages * torch.clamp(
+                    ratio, 1 - clip_coef, 1 + clip_coef
+                )
                 pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
                 # Value loss
@@ -185,6 +201,7 @@ class DPOTrainer:
 
                 entropy_loss = entropy.mean()
                 loss = pg_loss - ent_coef * entropy_loss + v_loss * vf_coef
+                print("loss", loss)
                 self.agent.retropropagate(loss, max_grad_norm)
 
             if target_kl is not None:
@@ -193,35 +210,40 @@ class DPOTrainer:
 
             y_pred, y_true = flatten_values.cpu().numpy(), flatten_returns.cpu().numpy()
             var_y = np.var(y_true)
-            explained_var = np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
+            explained_var = (
+                np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
+            )
+            print("explained_var", explained_var)
 
-            self.logger.add_scalar("charts/learning_rate",
-                                   self.agent.optim.param_groups[0]["lr"],
-                                   self.global_step)
-            self.logger.add_scalar("losses/value_loss",
-                                   v_loss.item(),
-                                   self.global_step)
-            self.logger.add_scalar("losses/policy_loss",
-                                   pg_loss.item(),
-                                   self.global_step)
-            self.logger.add_scalar("losses/entropy_loss",
-                                   entropy_loss.item(),
-                                   self.global_step)
-            self.logger.add_scalar("losses/old_approx_kl",
-                                   old_approx_kl.item(),
-                                   self.global_step)
-            self.logger.add_scalar("losses/approx_kl",
-                                   approx_kl.item(),
-                                   self.global_step)
-            self.logger.add_scalar("losses/clip_frac",
-                                   np.mean(clip_fracs),
-                                   self.global_step)
-            self.logger.add_scalar("losses/explained_variance",
-                                   explained_var,
-                                   self.global_step)
-            self.logger.add_scalar("charts/SPS",
-                                   int(self.global_step / (time.time() - self.start_time)),
-                                   self.global_step)
+            self.logger.add_scalar(
+                "charts/learning_rate",
+                self.agent.optim.param_groups[0]["lr"],
+                self.global_step,
+            )
+            self.logger.add_scalar("losses/value_loss", v_loss.item(), self.global_step)
+            self.logger.add_scalar(
+                "losses/policy_loss", pg_loss.item(), self.global_step
+            )
+            self.logger.add_scalar(
+                "losses/entropy_loss", entropy_loss.item(), self.global_step
+            )
+            self.logger.add_scalar(
+                "losses/old_approx_kl", old_approx_kl.item(), self.global_step
+            )
+            self.logger.add_scalar(
+                "losses/approx_kl", approx_kl.item(), self.global_step
+            )
+            self.logger.add_scalar(
+                "losses/clip_frac", np.mean(clip_fracs), self.global_step
+            )
+            self.logger.add_scalar(
+                "losses/explained_variance", explained_var, self.global_step
+            )
+            self.logger.add_scalar(
+                "charts/SPS",
+                int(self.global_step / (time.time() - self.start_time)),
+                self.global_step,
+            )
 
     def eval(self, debug=False):
         num_eval = 5
@@ -235,8 +257,9 @@ class DPOTrainer:
             while all_done is False:
                 # rollouts (no need for gradient)
                 with torch.no_grad():
-                    action, logprob, entropy, crit_value = \
+                    action, logprob, entropy, crit_value = (
                         self.agent.get_action_and_critic(self.next_obs)
+                    )
 
                 # step the envs
                 next_obs, reward, done, info = self.sims.step(action.cpu().numpy())
@@ -246,10 +269,18 @@ class DPOTrainer:
                         all_info[i] = item
                 all_done = all([len(all_info[i].keys()) > 0 for i in all_info])
 
-            avg_episodic_return = sum([all_info[i]['episode']['r'] for i in all_info]) / self.num_envs
-            avf_episodic_length = sum([all_info[i]['episode']['l'] for i in all_info]) / self.num_envs
-            self.logger.add_scalar("eval/episodic_return", avg_episodic_return, eval_step)
-            self.logger.add_scalar("eval/episodic_length", avf_episodic_length, eval_step)
+            avg_episodic_return = (
+                sum([all_info[i]["episode"]["r"] for i in all_info]) / self.num_envs
+            )
+            avg_episodic_length = (
+                sum([all_info[i]["episode"]["l"] for i in all_info]) / self.num_envs
+            )
+            self.logger.add_scalar(
+                "eval/avg_episodic_return", avg_episodic_return, eval_step
+            )
+            self.logger.add_scalar(
+                "eval/avg_episodic_length", avg_episodic_length, eval_step
+            )
             self.logger.flush()
 
     def close(self):

@@ -6,7 +6,7 @@ use_gpu = true
 ENV_NAME = "SuperMarioBros-1-1-v3"
 
 # algo: NEAT, DQNN, REINFORCE, DPO
-algo = "DQNN"
+algo = "DPO"
 
 # algorithms config files
 neat_config_file = "neat_config.v3.cfg"
