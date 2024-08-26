@@ -57,6 +57,9 @@ class AsyncMultiSims:
             np.asarray(infos),
         )
 
+    def render(self):
+        self.envs[0].render()
+
     def close(self):
         loop = asyncio.get_event_loop()
         looper = asyncio.gather(*[self.close_env(i) for i in range(self.num_envs)])

@@ -32,6 +32,9 @@ class AsyncSingleSim:
         feedback = loop.run_until_complete(looper)[0]
         return feedback
 
+    def render(self):
+        self.env.render()
+
     def close(self):
         loop = asyncio.get_event_loop()
         looper = asyncio.gather(self.close_env())
@@ -59,3 +62,8 @@ class AsyncSingleSim:
     @background
     def close_env(self):
         return self.env.close()
+
+    @background
+    def render_env(self):
+        # RuntimeError: rendering from python threads is not supported
+        return self.env.render()

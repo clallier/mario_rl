@@ -11,15 +11,27 @@ class DPOAgent:
         self.network = nn.Sequential(
             # input: envs, channels, time, w,  h
             # input: 4,    1,        4,    30, 30
-            nn.Conv3d(in_channels=1, out_channels=8, kernel_size=(3, 3, 3), stride=(3, 2, 2), padding=1),
+            nn.Conv3d(
+                in_channels=1,
+                out_channels=8,
+                kernel_size=(3, 3, 3),
+                stride=(3, 2, 2),
+                padding=1,
+            ),
             nn.ReLU(),
-            nn.Conv3d(in_channels=8, out_channels=16, kernel_size=(3, 3, 3), stride=(2, 2, 2), padding=1),
+            nn.Conv3d(
+                in_channels=8,
+                out_channels=16,
+                kernel_size=(3, 3, 3),
+                stride=(2, 2, 2),
+                padding=1,
+            ),
             nn.ReLU(),
             nn.Flatten(),
             nn.Linear(1024, nn_hidden_size),
             nn.ReLU(),
         )
-        
+
         hidden_size_2 = nn_hidden_size // 2
         hidden_size_4 = hidden_size_2 // 2
         self.critic = nn.Sequential(
@@ -28,7 +40,7 @@ class DPOAgent:
             nn.Linear(hidden_size_2, hidden_size_4),
             nn.ReLU(),
             nn.Linear(hidden_size_4, 1),
-            nn.ReLU()
+            nn.ReLU(),
         )
         self.actor = nn.Sequential(
             nn.Linear(nn_hidden_size, hidden_size_2),
@@ -36,7 +48,7 @@ class DPOAgent:
             nn.Linear(hidden_size_2, hidden_size_4),
             nn.ReLU(),
             nn.Linear(hidden_size_4, nn_output_size),
-            nn.ReLU()
+            nn.ReLU(),
         )
 
         self.network.to(self.common.device)
@@ -52,15 +64,15 @@ class DPOAgent:
     def get_action_and_critic(self, x, action=None):
         hidden = self.network(x)
         logits = self.actor(hidden)
-        probs = Categorical(logits)
-        probs.probs = torch.clamp(probs.probs, 0)
+        dist = Categorical(logits)
+        dist.probs = torch.clamp(dist.probs, 0)
         if action is None:
-            action = probs.sample()
+            action = dist.sample()
         critic_values = self.critic(hidden)
-        return action, probs.log_prob(action), probs.entropy(), critic_values 
+        return action, dist.log_prob(action), dist.entropy(), critic_values
 
     def set_lr(self, lrnow):
-        self.optim.param_groups[0]['lr'] = lrnow
+        self.optim.param_groups[0]["lr"] = lrnow
 
     def retropropagate(self, loss, max_grad_norm):
         self.optim.zero_grad()

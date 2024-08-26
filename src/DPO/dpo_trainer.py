@@ -21,6 +21,9 @@ class DPOTrainer:
         self.dpo_config = common.load_config_file(dpo_config_path)
         self.logger.add_file(dpo_config_path)
 
+        self.device = common.device
+        self.debug = common.config.get("debug")
+
         self.total_timesteps = self.dpo_config.get("total_timesteps", 10_000)
         self.num_steps = self.dpo_config.get("num_steps", 64)
         self.num_envs = self.dpo_config.get("num_envs", 1)
@@ -33,20 +36,21 @@ class DPOTrainer:
         obs_space_shape = (1,) + self.sims.single_observation_space.shape
         action_space_shape = self.sims.single_action_space.shape
         action_space_n = self.sims.single_action_space.n
-        device = self.common.device
 
         steps_envs_shape = (self.num_steps, self.num_envs)
-        self.obs = torch.zeros(steps_envs_shape + obs_space_shape).to(device)
-        self.actions = torch.zeros(steps_envs_shape + action_space_shape).to(device)
-        self.log_probs = torch.zeros(steps_envs_shape).to(device)
-        self.rewards = torch.zeros(steps_envs_shape).to(device)
-        self.dones = torch.zeros(steps_envs_shape).to(device)
-        self.values = torch.zeros(steps_envs_shape).to(device)
+        self.obs = torch.zeros(steps_envs_shape + obs_space_shape).to(self.device)
+        self.actions = torch.zeros(steps_envs_shape + action_space_shape).to(
+            self.device
+        )
+        self.log_probs = torch.zeros(steps_envs_shape).to(self.device)
+        self.rewards = torch.zeros(steps_envs_shape).to(self.device)
+        self.dones = torch.zeros(steps_envs_shape).to(self.device)
+        self.values = torch.zeros(steps_envs_shape).to(self.device)
 
         self.global_step = 0
         self.start_time = time.time()
-        self.next_obs = torch.tensor(self.sims.reset()).to(device)
-        self.next_done = torch.zeros(self.num_envs).to(device)
+        self.next_obs = torch.tensor(self.sims.reset()).to(self.device)
+        self.next_done = torch.zeros(self.num_envs).to(self.device)
         self.num_updates = self.total_timesteps // self.batch_size
 
         nn_hidden_size = self.dpo_config.get("nn_hidden_size", 128)
@@ -58,8 +62,6 @@ class DPOTrainer:
         self.close()
 
     def train(self):
-        device = self.common.device
-
         for update in range(1, self.num_updates + 1):
             if self.anneal_lr and self.num_updates > 0:
                 frac = 1.0 - (update - 1) / self.num_updates
@@ -83,11 +85,19 @@ class DPOTrainer:
 
                 # step the envs
                 next_obs, reward, done, info = self.sims.step(actions.cpu().numpy())
-                self.rewards[step] = torch.tensor(reward, dtype=torch.float32).to(
-                    device
+                self.rewards[step] = torch.tensor(
+                    reward, dtype=torch.float32, device=self.device
                 )
-                self.next_obs = torch.tensor(next_obs, dtype=torch.float32).to(device)
-                self.next_done = torch.tensor(done, dtype=torch.float32).to(device)
+
+                if self.debug:
+                    self.sims.render()
+
+                self.next_obs = torch.tensor(
+                    next_obs, dtype=torch.float32, device=self.device
+                )
+                self.next_done = torch.tensor(
+                    done, dtype=torch.float32, device=self.device
+                )
 
                 for item in info:
                     if "episode" in item.keys():
@@ -103,14 +113,13 @@ class DPOTrainer:
             self.logger.flush()
 
     def optimize_policy(self):
-        device = self.common.device
         num_steps = self.num_steps
         gamma = self.dpo_config.get("gamma")
 
         # bootstrap value if not done
         with torch.no_grad():
             next_value = self.agent.get_critic_value(self.next_obs).reshape(1, -1)
-            returns = torch.zeros_like(self.rewards).to(device)
+            returns = torch.zeros_like(self.rewards).to(self.device)
             for t in reversed(range(num_steps)):
                 if t == num_steps - 1:
                     next_non_terminal = 1.0 - self.next_done
@@ -245,7 +254,7 @@ class DPOTrainer:
                 self.global_step,
             )
 
-    def eval(self, debug=False):
+    def eval(self):
         num_eval = 5
         eval_step = self.global_step
 
@@ -285,5 +294,4 @@ class DPOTrainer:
 
     def close(self):
         self.sims.close()
-        self.logger.flush()
         self.logger.close()

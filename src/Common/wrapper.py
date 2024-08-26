@@ -101,6 +101,7 @@ class NormalizeReward(Wrapper):
         self.returns = self.returns * self.gamma * (1 - done) + done
         info["reward"] = reward
         info["normalized_reward"] = self.normalize(reward)
+        info["done"] = done
         return state, reward, done, info
 
     def normalize(self, reward):

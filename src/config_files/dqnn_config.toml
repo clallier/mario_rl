@@ -20,5 +20,5 @@ sync_network_rate = 4000
 gamma = 0.99
 # exploration rate
 epsilon_init = 0.8
-epsilon_decay = 0.99999972
+epsilon_decay = 0.999
 epsilon_min = 0.1

@@ -1,17 +1,17 @@
 seed = 0
-debug = false
+debug = true
 use_gpu = true
 
 # env_name: 'CartPole-v1', 'SuperMarioBros-1-1-v3'
 ENV_NAME = "SuperMarioBros-1-1-v3"
 
 # algo: NEAT, DQNN, REINFORCE, DPO
-algo = "DPO"
+algo = "REINFORCE"
 
 # algorithms config files
 neat_config_file = "neat_config.v3.cfg"
 dpo_config_file = "dpo_config.toml"
-# reinforce_config_file = "reinforce_config.toml"
+reinforce_config_file = "reinforce_config.toml"
 dqnn_config_file = "dqnn_config.toml"
 
 

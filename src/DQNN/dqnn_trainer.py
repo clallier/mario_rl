@@ -23,6 +23,7 @@ class DQNNTrainer:
         self.dqnn_config = common.load_config_file(dqnn_config_path)
         self.logger.add_file(dqnn_config_path)
 
+        self.debug = common.config.get("debug")
         self.num_episodes = self.dqnn_config.get("NUM_OF_EPISODES")
         self.save_freq = self.dqnn_config.get("SAVE_FREQ")
 
@@ -30,9 +31,10 @@ class DQNNTrainer:
         agent = self.create_agent(sim)
         self.load_agent_state(agent, from_episode)
 
-        state = sim.reset()
-        debug_nn_size(agent.online_network.network, state, common.device)
-        debug_count_params(agent.online_network.network)
+        if self.debug:
+            state = sim.reset()
+            debug_nn_size(agent.online_network.network, state, common.device)
+            debug_count_params(agent.online_network.network)
 
         for episode in range(from_episode, self.num_episodes + 1):
             print(f"Episode {episode} started")
@@ -49,7 +51,9 @@ class DQNNTrainer:
                 agent.store_in_memory(state, action, info, next_state, done)
                 agent.learn(episode)
                 state = next_state
-                # env.render()
+
+                if self.debug:
+                    sim.render()
 
             # end of current episode
             current_lr = agent.scheduler.get_last_lr()[0]
