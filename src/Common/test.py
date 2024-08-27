@@ -12,12 +12,16 @@ from pathlib import Path
 
 def test_from_checkpoint(checkpoint_path: str):
     checkpoint_path = Path(checkpoint_path)
-    print("### loading checkpoint from: ", checkpoint_path.resolve(), checkpoint_path.exists())
+    print(
+        "### loading checkpoint from: ",
+        checkpoint_path.resolve(),
+        checkpoint_path.exists(),
+    )
 
     common = Common(start_logger=False)
     env = gym_super_mario_bros.make(Common.ENV_NAME)
-    env.metadata['render.modes'] = ['rgb_array']
-    env.metadata['apply_api_compatibility'] = True
+    env.metadata["render.modes"] = ["rgb_array"]
+    env.metadata["apply_api_compatibility"] = True
 
     env = JoypadSpace(env, Common.RIGHT_RUN)
     env = apply_wrappers(env)
@@ -29,7 +33,7 @@ def test_from_checkpoint(checkpoint_path: str):
     reward_sum_raw = 0
 
     while not done:
-        action = agent.choose_action(state)
+        action = agent.get_action(state)
         next_state, reward, done, info = env.step(action)
         reward_sum_raw += reward["raw"]
         state = next_state
@@ -44,5 +48,15 @@ if __name__ == "__main__":
     scores = []
     for i in range(10):
         scores.append(test_from_checkpoint(checkpoint_path))
-    print("### scores: ", scores, "mean: ", np.mean(scores), "stdev: ", np.std(scores), "best: ", np.max(scores),
-          "worst: ", np.min(scores))
+    print(
+        "### scores: ",
+        scores,
+        "mean: ",
+        np.mean(scores),
+        "stdev: ",
+        np.std(scores),
+        "best: ",
+        np.max(scores),
+        "worst: ",
+        np.min(scores),
+    )

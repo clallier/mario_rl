@@ -78,7 +78,7 @@ class AgentNN(nn.Module):
             nn.Linear(hidden_size_2, hidden_size_4),
             nn.ReLU(),
             nn.Linear(hidden_size_4, nn_output_size),
-            nn.ReLU(),
+            nn.Softmax(dim=-1),
         )
 
         if freeze:

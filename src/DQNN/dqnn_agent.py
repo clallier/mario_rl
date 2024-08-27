@@ -1,11 +1,7 @@
-from pathlib import Path
-
 import numpy as np
 import torch
-from tensordict import TensorDict
 from torch import nn
 from torch.optim import lr_scheduler
-from torchrl.data import TensorDictReplayBuffer, LazyMemmapStorage
 
 from src.Common.common import Common, Logger
 from src.DQNN.agent_nn import AgentNN
@@ -16,12 +12,12 @@ class DQNNAgent:
         self,
         nn_hidden_size: int,
         nn_output_size: int,
-        ddqn_config: dict,
+        config: dict,
         common: Common,
         logger: Logger,
     ):
         self.logger = logger
-        self.config = ddqn_config
+        self.config = config
         self.num_actions = nn_output_size
         self.learn_step_counter = 0
         # device
@@ -69,18 +65,7 @@ class DQNNAgent:
 
         self.loss = nn.SmoothL1Loss()  # Huber loss # nn.MSELoss
 
-        # Replay buffer
-        self.replay_buffer_capacity = 100_000
-        self.storage_dir = Path(Path.cwd(), "_dump")
-        print(
-            "### storage_dir: ", self.storage_dir.resolve(), self.storage_dir.exists()
-        )
-        storage = LazyMemmapStorage(
-            self.replay_buffer_capacity, scratch_dir=self.storage_dir
-        )
-        self.replay_buffer = TensorDictReplayBuffer(storage=storage)
-
-    def choose_action(self, state):
+    def get_action(self, state):
         if np.random.random() < self.epsilon:
             return np.random.choice(self.num_actions)
         else:
@@ -91,52 +76,6 @@ class DQNNAgent:
     def decay_epsilon(self):
         self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
 
-    def save_state(self, path):
-        torch.save(
-            {
-                "epsilon": self.epsilon,
-                "optimizer": self.optimizer.state_dict(),
-                "scheduler": self.scheduler.state_dict(),
-                "online_network": self.online_network.state_dict(),
-            },
-            path,
-        )
-        print("### replay buffer size: ", len(self.replay_buffer))
-
-    def load_state(self, path):
-        storage = LazyMemmapStorage(
-            self.replay_buffer_capacity, scratch_dir=self.storage_dir
-        )
-        print("### loading buffer storage", len(storage))
-        self.replay_buffer = TensorDictReplayBuffer(storage=storage)
-
-        load_state = torch.load(path)
-        self.epsilon = load_state["epsilon"]
-        self.optimizer.load_state_dict(load_state["optimizer"])
-        self.scheduler.load_state_dict(load_state["scheduler"])
-        model_state_dict = load_state["online_network"]
-        self.online_network.load_state_dict(model_state_dict)
-        # force sync networks?
-        self.target_network.load_state_dict(model_state_dict)
-
-    def store_in_memory(self, state, action, info, next_state, done):
-        reward = info.get("reward")
-        state = np.squeeze(state, axis=0)
-        next_state = np.squeeze(next_state, axis=0)
-
-        self.replay_buffer.add(
-            TensorDict(
-                {
-                    "state": torch.tensor(state, dtype=torch.float32),
-                    "action": torch.tensor(action),
-                    "reward": torch.tensor(reward),
-                    "next_state": torch.tensor(next_state, dtype=torch.float32),
-                    "done": torch.tensor(done),
-                },
-                batch_size=[],
-            )
-        )
-
     def sync_networks(self):
         if (
             self.learn_step_counter % self.sync_network_rate == 0
@@ -145,9 +84,9 @@ class DQNNAgent:
             self.logger.add_scalar("sync", 1, self.learn_step_counter)
             self.target_network.load_state_dict(self.online_network.state_dict())
 
-    def learn(self, episode):
+    def learn(self, replay_buffer):
         # if not enough samples in replay buffer, do nothing
-        if len(self.replay_buffer) < self.batch_size:
+        if len(replay_buffer) < self.batch_size:
             return
 
         # if needed, sync target network with online network
@@ -156,7 +95,7 @@ class DQNNAgent:
         # reset gradients
         self.optimizer.zero_grad()
         # get some samples from replay buffer
-        samples = self.replay_buffer.sample(self.batch_size).to(self.device)
+        samples = replay_buffer.sample(self.batch_size).to(self.device)
 
         # get q values for current state
         states, actions, rewards, next_states, dones = [

@@ -109,9 +109,9 @@ class Logger:
             )
 
         self.log_dir = self.writer.log_dir
-        self.checkpoint_dir = Path(self.log_dir, "checkpoints/")
+        self.checkpoint_dir = Path(Path.cwd(), "checkpoints/")
         self.actions_dir = Path(self.log_dir, "actions/")
-        Path(self.checkpoint_dir).mkdir(parents=True)
+        Path(self.checkpoint_dir).mkdir(parents=True, exist_ok=True)
         Path(self.actions_dir).mkdir(parents=True)
 
     def add_scalar(self, name: str, value, step: int = -1):

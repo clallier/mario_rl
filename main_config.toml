@@ -1,12 +1,14 @@
 seed = 0
 debug = true
-use_gpu = true
+use_gpu = false
+# save freq in episodes
+save_freq = 50
 
 # env_name: 'CartPole-v1', 'SuperMarioBros-1-1-v3'
 ENV_NAME = "SuperMarioBros-1-1-v3"
 
 # algo: NEAT, DQNN, REINFORCE, DPO
-algo = "REINFORCE"
+algo = "DQNN"
 
 # algorithms config files
 neat_config_file = "neat_config.v3.cfg"
