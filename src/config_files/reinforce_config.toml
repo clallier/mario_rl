@@ -1,2 +1,2 @@
-total_timesteps = 50_000
+NUM_OF_EPISODES = 50_000
 discount_factor = 0.99

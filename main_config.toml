@@ -1,6 +1,6 @@
 seed = 0
 debug = true
-use_gpu = false
+use_gpu = true
 # save freq in episodes
 save_freq = 50
 
@@ -8,14 +8,13 @@ save_freq = 50
 ENV_NAME = "SuperMarioBros-1-1-v3"
 
 # algo: NEAT, DQNN, REINFORCE, DPO
-algo = "DQNN"
+algo = "REINFORCE"
 
 # algorithms config files
 neat_config_file = "neat_config.v3.cfg"
 dpo_config_file = "dpo_config.toml"
 reinforce_config_file = "reinforce_config.toml"
 dqnn_config_file = "dqnn_config.toml"
-
 
 # loggers
 start_tensorboard = false

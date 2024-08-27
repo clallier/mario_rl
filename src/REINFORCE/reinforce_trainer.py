@@ -1,59 +1,43 @@
 from math import prod
+from pathlib import Path
 import torch
 from src.Common.async_single_sim import AsyncSingleSim
-from src.Common.common import Common, Logger
+from src.Common.trainer import Trainer
 from src.REINFORCE.reinforce_agent import ReinforceAgent
+from src.Common.conv_calc import debug_count_params, debug_nn_size
 
 
 # from https://www.youtube.com/watch?v=5eSh5F8gjWU
-class ReinforceTrainer:
-    def __init__(self, common):
-        self.common = common
-        self.logger = Logger(common)
+class ReinforceTrainer(Trainer):
+    def init(self):
+        self.discount_factor = self.config.get("discount_factor")
+        if self.debug:
+            state = self.sim.reset()
+            debug_nn_size(self.agent.nn, state, self.device)
+            debug_count_params(self.agent.nn)
 
-        # Reinforce config
-        reinforce_config_path = Common.get_file(
-            f"./config_files/{common.config.get('reinforce_config_file')}"
-        )
-        self.reinforce_config = common.load_config_file(reinforce_config_path)
-        self.logger.add_file(reinforce_config_path)
+    def create_sim(self):
+        return AsyncSingleSim(self.common)
 
-        # Configs
-        self.device = common.device
-        self.debug = common.config.get("debug")
-        self.total_timesteps = self.reinforce_config.get("total_timesteps")
-        self.discount_factor = self.reinforce_config.get("discount_factor")
-
-        # Sim
-        self.sim = AsyncSingleSim(common)
-
-        # Agent
+    def create_agent(self):
         nn_input_size = prod(self.sim.single_observation_space.shape)
         nn_output_size = self.sim.single_action_space.n
-        self.agent = ReinforceAgent(common, nn_input_size, nn_output_size)
+        return ReinforceAgent(self.common, nn_input_size, nn_output_size)
 
-        # Train
-        self.train()
-        self.close()
+    def train_init(self):
+        self.length_episodes = []
 
-    def train(self):
-        length_episodes = []
-        for episode in range(self.total_timesteps):
-            losses_len, losses_sum = self.run_episode(episode)
-            self.logger.add_scalar("episode_length", losses_len, episode)
-            self.logger.add_scalar("losses_sum", losses_sum, episode)
-            length_episodes.append(losses_len)
-            length_episodes = length_episodes[-15:]
-            sum_episodes = sum(length_episodes)
-            self.logger.add_scalar("sliding_sum_episodes", sum_episodes, episode)
-            self.logger.flush()
+    # def train(self):
+    #     for episode in range(self.num_episodes):
+    #         self.run_episode(episode)
 
-        # final reward evaluation
-        rewards = []
-        for _ in range(5):
-            rewards += self.eval_episode()
-        self.logger.add_scalar(f"final_reward", sum(rewards), episode)
-        self.logger.flush()
+    #     # final reward evaluation
+    #     rewards = []
+    #     for _ in range(5):
+    #         rewards += self.eval_episode()
+    #     self.logger.add_scalar(f"final_reward", sum(rewards), episode)
+    #     self.logger.flush()
+    #     self.close
 
     def run_episode(self, episode):
         actions, states, rewards, discounted_returns, losses = [], [], [], [], []
@@ -89,8 +73,17 @@ class ReinforceTrainer:
             losses.append(loss)
             self.agent.retropropagate(loss)
 
-        print(f"episode {episode} loss ({len(losses)}): {sum(losses).item()}")
-        return len(losses), sum(losses)
+        # log some data
+        losses_len = len(losses)
+        losses_sum = sum(losses).item()
+        print(f"episode {episode} losses_len: {losses_len}, losses_sum: {losses_sum}")
+        self.logger.add_scalar("episode_length", losses_len, episode)
+        self.logger.add_scalar("losses_sum", losses_sum, episode)
+
+        self.length_episodes.append(losses_len)
+        self.length_episodes = self.length_episodes[-15:]
+        sum_episodes = sum(self.length_episodes)
+        self.logger.add_scalar("sliding_sum_episodes", sum_episodes, episode)
 
     def eval_episode(self):
         rewards = []
@@ -109,6 +102,19 @@ class ReinforceTrainer:
             state = next_state
         return rewards
 
-    def close(self):
-        self.sim.close()
-        self.logger.close()
+    def save_complete_state(self, path: Path):
+        torch.save(
+            {
+                "episode": self.episode,
+                "optimizer": self.agent.optimizer.state_dict(),
+                "neural_network": self.agent.nn.state_dict(),
+            },
+            path,
+        )
+
+    def load_complete_state(self, path):
+        load_state = torch.load(path, weights_only=False)
+        self.episode = load_state["episode"]
+        self.agent.optimizer.load_state_dict(load_state["optimizer"])
+        model_state_dict = load_state["neural_network"]
+        self.agent.nn.load_state_dict(model_state_dict)

@@ -43,7 +43,7 @@ class DQNNTrainer(Trainer):
             nn_hidden_size, nn_output_size, self.config, self.common, self.logger
         )
 
-    def run_single_episode(self, episode):
+    def run_episode(self, episode):
         done = False
         state = self.sim.reset()
         self.tracker.init_reward()

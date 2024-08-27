@@ -24,7 +24,7 @@ class Trainer(ABC):
 
         self.debug = common.config.get("debug")
         self.save_freq = common.config.get("save_freq", 100)
-        self.episode = -1
+        self.episode = 0
         self.num_episodes = self.config.get("NUM_OF_EPISODES")
         self.device = common.device
 
@@ -57,20 +57,24 @@ class Trainer(ABC):
         pass
 
     def train(self):
+        self.train_init()
         from_episode = self.episode + 1
-        for episode in range(from_episode, self.num_episodes):
+        for episode in range(from_episode, self.num_episodes + 1):
             self.episode = episode
-            self.run_episode(episode + 1)
+            print(f"Episode {episode} started")
+            self.run_episode(episode)
+            # end of episode
+            self.logger.flush()
+            if episode % self.save_freq == 0:
+                self.save_state()
         self.close()
 
-    def run_episode(self, episode: int):
-        print(f"Episode {episode} started")
-        self.run_single_episode(episode)
-        if episode % self.save_freq == 0:
-            self.save_state()
+    @abstractmethod
+    def train_init(self):
+        pass
 
     @abstractmethod
-    def run_single_episode(self, episode: int):
+    def run_episode(self, episode: int):
         pass
 
     def save_state(self):

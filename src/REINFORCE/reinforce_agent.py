@@ -26,7 +26,7 @@ class ReinforceAgent:
         self.nn.to(self.device)
 
         lr = 0.001
-        self.optim = Adam(self.nn.parameters(), lr=lr)
+        self.optimizer = Adam(self.nn.parameters(), lr=lr)
 
     def get_action(self, x, action=None):
         probs = self.nn(x)
@@ -37,6 +37,6 @@ class ReinforceAgent:
         return action, log_prob
 
     def retropropagate(self, loss):
-        self.optim.zero_grad()
+        self.optimizer.zero_grad()
         loss.backward()
-        self.optim.step()
+        self.optimizer.step()
