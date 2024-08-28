@@ -65,10 +65,8 @@ class DQNNTrainer(Trainer):
         self.logger.add_scalar(
             "learning_rate", current_lr, self.agent.learn_step_counter
         )
-        self.agent.scheduler.step()
 
         self.tracker.end_of_episode(info, episode, self.save_actions)
-        self.logger.flush()
 
     def save_complete_state(self, path: Path):
         torch.save(
@@ -78,6 +76,7 @@ class DQNNTrainer(Trainer):
                 "optimizer": self.agent.optimizer.state_dict(),
                 "scheduler": self.agent.scheduler.state_dict(),
                 "online_network": self.agent.online_network.state_dict(),
+                "sim": self.sim.state_dict(),
             },
             path,
         )
@@ -118,6 +117,7 @@ class DQNNTrainer(Trainer):
         self.agent.online_network.load_state_dict(model_state_dict)
         # sync networks
         self.agent.target_network.load_state_dict(model_state_dict)
+        self.sim.load_state_dict(load_state["sim"])
 
     def save_actions(self, actions, episode, rewards):
         path = Path(

@@ -41,6 +41,16 @@ class AsyncSingleSim:
         feedback = loop.run_until_complete(looper)[0]
         return feedback
 
+    def state_dict(self) -> dict:
+        state_dict = {}
+        if hasattr(self.env, "state_dict"):
+            state_dict = self.env.state_dict()
+        return state_dict
+
+    def load_state_dict(self, state: dict):
+        if hasattr(self.env, "load_state_dict"):
+            self.env.load_state_dict(state)
+
     @background
     def make_env(self, common):
         print("Making env")

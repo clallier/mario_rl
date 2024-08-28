@@ -22,7 +22,7 @@ class ReinforceTrainer(Trainer):
     def create_agent(self):
         nn_input_size = prod(self.sim.single_observation_space.shape)
         nn_output_size = self.sim.single_action_space.n
-        return ReinforceAgent(self.common, nn_input_size, nn_output_size)
+        return ReinforceAgent(self.common, nn_input_size, nn_output_size, self.config)
 
     def train_init(self):
         self.length_episodes = []
@@ -54,7 +54,7 @@ class ReinforceTrainer(Trainer):
 
             actions.append(action)
             states.append(state)
-            rewards.append(reward)
+            rewards.append(info.get("normalized_reward"))
             state = next_state
 
         # discounted rewards
@@ -107,7 +107,9 @@ class ReinforceTrainer(Trainer):
             {
                 "episode": self.episode,
                 "optimizer": self.agent.optimizer.state_dict(),
+                "scheduler": self.agent.scheduler.state_dict(),
                 "neural_network": self.agent.nn.state_dict(),
+                "sim": self.sim.state_dict(),
             },
             path,
         )
@@ -116,5 +118,7 @@ class ReinforceTrainer(Trainer):
         load_state = torch.load(path, weights_only=False)
         self.episode = load_state["episode"]
         self.agent.optimizer.load_state_dict(load_state["optimizer"])
+        self.agent.scheduler.load_state_dict(load_state["scheduler"])
         model_state_dict = load_state["neural_network"]
         self.agent.nn.load_state_dict(model_state_dict)
+        self.sim.load_state_dict(load_state["sim"])

@@ -114,6 +114,20 @@ class NormalizeReward(Wrapper):
         self.returns = np.zeros(1)
         return self.env.reset()
 
+    def state_dict(self):
+        return {
+            "return_rms": self.return_rms,
+            "returns": self.returns,
+            "gamma": self.gamma,
+            "epsilon": self.epsilon,
+        }
+
+    def load_state_dict(self, state: dict):
+        self.return_rms = state.get("return_rms")
+        self.returns = state.get("returns")
+        self.gamma = state.get("gamma")
+        self.epsilon = state.get("epsilon")
+
 
 def apply_wrappers(env):
     env = SkipFrame(env, skip=4)

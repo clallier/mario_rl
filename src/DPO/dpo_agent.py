@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.distributions import Categorical
-from torch.optim import Adam
+from torch.optim import AdamW
 
 
 class DPOAgent:
@@ -56,7 +56,7 @@ class DPOAgent:
         self.actor.to(self.common.device)
 
         lr = dpo_config.get("lr", 0.001)
-        self.optim = Adam(self.actor.parameters(), lr=lr, eps=1e-5)
+        self.optim = AdamW(self.actor.parameters(), lr=lr, eps=1e-5)
 
     def get_critic_value(self, x):
         return self.critic(self.network(x))

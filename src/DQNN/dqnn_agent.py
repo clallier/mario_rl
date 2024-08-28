@@ -1,10 +1,10 @@
 import numpy as np
 import torch
 from torch import nn
-from torch.optim import lr_scheduler
 
 from src.Common.common import Common, Logger
 from src.DQNN.agent_nn import AgentNN
+from torch.optim import AdamW, lr_scheduler
 
 
 class DQNNAgent:
@@ -52,8 +52,8 @@ class DQNNAgent:
         )
 
         # Optimizer and loss
-        self.optimizer = torch.optim.Adam(
-            self.online_network.parameters(), lr=self.learning_rate
+        self.optimizer = AdamW(
+            self.online_network.parameters(), lr=self.learning_rate, weight_decay=1e-5
         )
 
         self.scheduler = lr_scheduler.LinearLR(
@@ -122,6 +122,7 @@ class DQNNAgent:
         loss.backward()
 
         self.optimizer.step()
+        self.scheduler.step()
 
         self.decay_epsilon()
         self.logger.add_scalar("epsilon", self.epsilon, self.learn_step_counter)
