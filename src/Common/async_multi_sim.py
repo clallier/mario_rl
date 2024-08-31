@@ -4,6 +4,7 @@ import gym
 import numpy as np
 from src.Common.common import background
 from src.Common.sim import Sim
+from matplotlib import pyplot as plt
 
 
 class AsyncMultiSims:
@@ -29,11 +30,10 @@ class AsyncMultiSims:
         states = np.asarray(states, dtype=np.float32)
 
         print("### envs reset, states: ", states.min(), states.max())
-        from matplotlib import pyplot as plt
 
         state2 = states.reshape([self.num_envs, -1, 30])
         plt.imshow(state2[0])
-
+        plt.show()
         return states
 
     def step(self, actions):
@@ -64,6 +64,19 @@ class AsyncMultiSims:
         loop = asyncio.get_event_loop()
         looper = asyncio.gather(*[self.close_env(i) for i in range(self.num_envs)])
         loop.run_until_complete(looper)
+
+    def state_dict(self) -> dict:
+        state_dict = {}
+        for i in range(self.num_envs):
+            if hasattr(self.envs[i], "state_dict"):
+                state_dict[i] = self.envs[i].state_dict()
+        return state_dict
+
+    def load_state_dict(self, state: dict):
+        for i in range(self.num_envs):
+            sub_state = state[i]
+            if sub_state and hasattr(self.envs[i], "load_state_dict"):
+                self.envs[i].load_state_dict(sub_state)
 
     @background
     def make_env(self, common, i):

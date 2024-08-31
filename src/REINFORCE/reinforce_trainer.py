@@ -45,7 +45,7 @@ class ReinforceTrainer(Trainer):
         state = self.sim.reset()
 
         while not done:
-            state = torch.tensor(state, dtype=torch.float32, device=self.device)
+            state = self.to_tensor(state)
             action, log_prob = self.agent.get_action(state)
             next_state, reward, done, info = self.sim.step(action.item())
 
@@ -63,9 +63,7 @@ class ReinforceTrainer(Trainer):
             g = 0
             for k, r in enumerate(rewards[t:]):
                 g += (y**k) * r
-            discounted_returns.append(
-                torch.tensor(g, dtype=torch.float32, device=self.device)
-            )
+            discounted_returns.append(self.to_tensor(g))
 
         for state, action, g in zip(states, actions, discounted_returns):
             _, log_prob = self.agent.get_action(state, action)
@@ -91,7 +89,7 @@ class ReinforceTrainer(Trainer):
         state = self.sim.reset()
 
         while not done:
-            state = torch.tensor(state, dtype=torch.float32, device=self.device)
+            state = self.to_tensor(state)
             action = self.agent.get_action(state)
             next_state, reward, done, info = self.sim.step(action.cpu().numpy())
 

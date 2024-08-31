@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 import re
 
+import numpy as np
+import torch
+
 from src.Common.common import Common, Logger
 
 
@@ -43,6 +46,9 @@ class Trainer(ABC):
             self.sim.close()
         if self.logger:
             self.logger.close()
+
+    def to_tensor(self, arr: np.array, dtype=torch.float32):
+        return torch.tensor(arr, dtype=dtype, device=self.device)
 
     @abstractmethod
     def init(self):

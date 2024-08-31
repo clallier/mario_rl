@@ -1,9 +1,12 @@
 nn_hidden_size = 512
-total_timesteps = 500_000
+NUM_OF_EPISODES = 5_000_000
 num_envs = 7
-num_steps = 2048
-anneal_lr = true
-lr = 5e-2
+num_steps_per_update = 2048
+
+learning_rate = 0.0001
+learning_rate_start_factor = 1.0
+learning_rate_end_factor = 0.00001
+
 #gae = true
 #gamma = 0.99
 #gae_lambda = 0.95
@@ -11,9 +14,9 @@ lr = 5e-2
 # the discount factor gamma
 gamma = 0.99
 # the number of mini-batches
-num_minibatches = 4
+num_minibatches = 8
 # the K epochs to update the policy
-update_epochs = 4
+update_epochs = 8
 # Toggles advantages normalization
 norm_adv = true
 # the surrogate clipping coefficient

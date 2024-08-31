@@ -93,10 +93,10 @@ class DQNNTrainer(Trainer):
         self.replay_buffer.add(
             TensorDict(
                 {
-                    "state": torch.tensor(state, dtype=torch.float32),
+                    "state": self.to_tensor(state),
                     "action": torch.tensor(action),
                     "reward": torch.tensor(reward),
-                    "next_state": torch.tensor(next_state, dtype=torch.float32),
+                    "next_state": self.to_tensor(next_state),
                     "done": torch.tensor(done),
                 },
                 batch_size=[],
