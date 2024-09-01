@@ -6,10 +6,10 @@ from src.Common.wrapper import apply_wrappers
 
 class Sim:
     def __init__(self, common):
-        env_name = common.config.get('ENV_NAME')
+        env_name = common.config.get("ENV_NAME")
         self.env = gym_super_mario_bros.make(env_name)
-        self.env.metadata['render.modes'] = ['human', 'rgb_array']
-        self.env.metadata['apply_api_compatibility'] = True
+        self.env.metadata["render.modes"] = ["human", "rgb_array"]
+        self.env.metadata["apply_api_compatibility"] = True
 
         self.env = JoypadSpace(self.env, Common.RIGHT_RUN)
         self.env = apply_wrappers(self.env)
@@ -26,4 +26,3 @@ class Sim:
 
     def close(self):
         self.env.close()
-

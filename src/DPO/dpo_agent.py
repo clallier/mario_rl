@@ -6,7 +6,7 @@ from torch.optim import AdamW, lr_scheduler
 
 class DPOAgent:
 
-    def __init__(self, common, nn_hidden_size, nn_output_size, config):
+    def __init__(self, common, nn_info_size, nn_hidden_size, nn_output_size, config):
         self.common = common
         self.config = config
         self.num_episodes = self.config.get("NUM_OF_EPISODES")
@@ -41,24 +41,23 @@ class DPOAgent:
         hidden_size_2 = nn_hidden_size // 2
         hidden_size_4 = hidden_size_2 // 2
         self.critic = nn.Sequential(
-            self.network,
-            nn.Linear(nn_hidden_size, hidden_size_2),
+            nn.Linear(nn_info_size + nn_hidden_size, hidden_size_2),
             nn.ReLU(),
             nn.Linear(hidden_size_2, hidden_size_4),
             nn.ReLU(),
             nn.Linear(hidden_size_4, 1),
-            nn.ReLU(),
+            nn.Softmax(dim=-1),
         )
         self.actor = nn.Sequential(
-            self.network,
-            nn.Linear(nn_hidden_size, hidden_size_2),
+            nn.Linear(nn_info_size + nn_hidden_size, hidden_size_2),
             nn.ReLU(),
             nn.Linear(hidden_size_2, hidden_size_4),
             nn.ReLU(),
             nn.Linear(hidden_size_4, nn_output_size),
-            nn.ReLU(),
+            nn.Softmax(dim=-1),
         )
 
+        self.network.to(self.common.device)
         self.critic.to(self.common.device)
         self.actor.to(self.common.device)
 
@@ -73,16 +72,18 @@ class DPOAgent:
             total_iters=self.num_episodes,
         )
 
-    def get_critic_value(self, x):
-        return self.critic(x)
+    def get_critic_value(self, x0, x1):
+        x0 = self.network(x0)
+        return self.critic(torch.cat((x0, x1), dim=1))
 
-    def get_action_and_critic(self, x, action=None):
-        logits = self.actor(x)
+    def get_action_and_critic(self, x0, x1, action=None):
+        x0 = self.network(x0)
+        logits = self.actor(torch.cat((x0, x1), dim=1))
         dist = Categorical(logits)
         dist.probs = torch.clamp(dist.probs, 0)
         if action is None:
             action = dist.sample()
-        critic_values = self.critic(x)
+        critic_values = self.critic(torch.cat((x0, x1), dim=1))
         return action, dist.log_prob(action), dist.entropy(), critic_values
 
     def retropropagate(self, loss, max_grad_norm):

@@ -1,12 +1,12 @@
 # num of episodes
-NUM_OF_EPISODES = 100_000
+NUM_OF_EPISODES = 50_000
 replay_buffer_capacity = 100_000
 
 # neural network
 nn_nn_hidden_size = 512
 
 # Learning rate
-learning_rate = 0.001
+learning_rate = 0.01
 learning_rate_start_factor = 1.0
 learning_rate_end_factor = 0.00001
 
@@ -17,6 +17,6 @@ sync_network_rate = 10
 # discount factor
 gamma = 0.99
 # exploration rate
-epsilon_init = 0.8
-epsilon_decay = 0.99999972
+epsilon_init = 0.9
+epsilon_decay = 0.999
 epsilon_min = 0.1

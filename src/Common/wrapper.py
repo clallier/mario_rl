@@ -1,3 +1,4 @@
+import math
 import numpy as np
 from gym import Wrapper
 from gym.wrappers import (
@@ -79,6 +80,98 @@ class NormalizeFrame(Wrapper):
         return state
 
 
+class StoreActions(Wrapper):
+    """Store the list of actions taken"""
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.actions = []
+
+    def step(self, action):
+        self.actions.append(action)
+        state, reward, done, info = self.env.step(action)
+        # append actions at the end of the episode
+        if "episode" in info.keys():
+            info["episode"]["a"] = self.actions
+        return state, reward, done, info
+
+    def reset(self):
+        self.actions = []
+        return self.env.reset()
+
+
+class CustomReward(Wrapper):
+    """Try to maximize the x-axis progress"""
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.previous_x_pos = 0
+        self.previous_coins = 0
+        self.previous_score = 0
+        self.previous_status = "small"
+        CustomReward.x_max = 2000
+        CustomReward.y_min = 100
+        CustomReward.y_max = 0
+
+    def step(self, action):
+        state, reward, done, info = self.env.step(action)
+        x_pos = info["x_pos"].item()
+        y_pos = info["y_pos"].item()
+        v_x = 0.1 * abs(x_pos - self.previous_x_pos)
+        flag_get = info["flag_get"]
+        coins = info["coins"]
+        score = info["score"] / 100
+        status = (info["status"] != "small") * 1
+        progress = x_pos / CustomReward.x_max
+
+        reward = -0.5 + progress  # + 0.1 * v_x
+
+        if progress > 1:
+            reward += 1
+
+        if flag_get:
+            reward += 2000
+        elif done and (y_pos < 75 or y_pos >= 252):
+            # fall in a hole
+            reward -= 1800
+        elif done:
+            # hit by a mob
+            reward -= 2000
+
+        # d_coins = coins - self.previous_coins
+        # d_score = score - self.previous_score
+        # if d_coins or d_score:
+        #     reward += 100
+
+        # reward += y * 5
+
+        # d_status = status - self.previous_status
+
+        self.previous_x_pos = x_pos
+        self.previous_coins = coins
+        self.previous_score = score
+        self.previous_status = status
+        if x_pos > CustomReward.x_max:
+            CustomReward.x_max = x_pos
+        if y_pos < CustomReward.y_min:
+            CustomReward.y_min = y_pos
+            print(f"### y_min: {CustomReward.y_min}")
+        if y_pos > CustomReward.y_max:
+            CustomReward.y_max = y_pos
+            print(f"y_max: {CustomReward.y_max}")
+        return state, reward, done, info
+
+    def reset(self):
+        self.previous_x_pos = 0
+        return self.env.reset()
+
+    def state_dict(self):
+        return {"x_max": CustomReward.x_max}
+
+    def load_state_dict(self, state: dict):
+        CustomReward.x_max = state.get("x_max")
+
+
 class NormalizeReward(Wrapper):
     """This wrapper will normalize immediate rewards s.t. their exponential moving average has a fixed variance.
     From: https://gymnasium.farama.org/_modules/gymnasium/wrappers/normalize/#NormalizeReward
@@ -136,6 +229,8 @@ def apply_wrappers(env):
     env = GrayScaleObservation(env, keep_dim=False)
     env = FrameStack(env, num_stack=4, lz4_compress=True)
     env = NormalizeFrame(env)
+    env = CustomReward(env)
     env = NormalizeReward(env)
     env = RecordEpisodeStatistics(env)
+    env = StoreActions(env)
     return env

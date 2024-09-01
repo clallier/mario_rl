@@ -5,17 +5,18 @@ import re
 import numpy as np
 import torch
 
-from src.Common.common import Common, Logger
+from src.Common.common import Common, Logger, Tracker
 
 
 class Trainer(ABC):
 
     def __init__(self, common: Common, algo: str):
+        self.algo = algo.lower()
         self.common = common
         self.logger = Logger(common)
+        self.tracker = Tracker(self.algo, self.logger)
 
         # config
-        self.algo = algo.lower()
         config_file_name = f"{self.algo}_config_file"
         config_path = Common.get_file(
             f"./config_files/{common.config.get(config_file_name)}"
@@ -30,6 +31,7 @@ class Trainer(ABC):
         self.episode = 0
         self.num_episodes = self.config.get("NUM_OF_EPISODES")
         self.device = common.device
+        self.info_shape = (6,)
 
         self.sim = self.create_sim()
         self.agent = self.create_agent()
@@ -50,6 +52,22 @@ class Trainer(ABC):
     def to_tensor(self, arr: np.array, dtype=torch.float32):
         return torch.tensor(arr, dtype=dtype, device=self.device)
 
+    def info_to_tensor(self, info: np.array):
+        arr = np.array(
+            [
+                [
+                    i.get("x_pos"),
+                    i.get("y_pos"),
+                    i.get("flag_get"),
+                    i.get("coins"),
+                    i.get("score"),
+                    i.get("time"),
+                ]
+                for i in info
+            ]
+        )
+        return torch.tensor(arr, dtype=torch.float32, device=self.device)
+
     @abstractmethod
     def init(self):
         pass
@@ -68,8 +86,10 @@ class Trainer(ABC):
         for episode in range(from_episode, self.num_episodes + 1):
             self.episode = episode
             print(f"Episode {episode} started")
-            self.run_episode(episode)
+            info = self.run_episode(episode)
             # end of episode
+            self.tracker.end_of_episode(self.agent, info, episode)
+            self.end_of_episode(info, episode)
             self.logger.flush()
             if episode % self.save_freq == 0:
                 self.save_state()
@@ -80,7 +100,11 @@ class Trainer(ABC):
         pass
 
     @abstractmethod
-    def run_episode(self, episode: int):
+    def run_episode(self, episode: int) -> dict:
+        pass
+
+    @abstractmethod
+    def end_of_episode(self, info: dict, episode: int):
         pass
 
     def save_state(self):

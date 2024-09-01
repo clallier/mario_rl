@@ -1,5 +1,6 @@
 import asyncio
 import collections
+import math
 import os
 import pickle
 import random
@@ -26,7 +27,8 @@ def background(f):
 
 
 class Common:
-    RIGHT_RUN = [["right", "B"], ["right", "A", "B"]]
+    RIGHT_RUN = [["right"], ["right", "A"], ["right", "A", "B"]]
+    # RIGHT_RUN = [["right", "B"], ["right", "A", "B"]]
 
     def __init__(self):
         self.change_path()
@@ -197,51 +199,55 @@ class DummyLogger:
 
 
 class Tracker:
-    def __init__(self, logger: Logger):
+    def __init__(self, algo: str, logger: Logger):
+        self.algo = algo
         self.logger = logger
-        # accumulated rewards for the current episode
-        self.rewards = 0
-        # current episode actions (for debugging)
-        self.actions = []
-        # best accumulated reward (for one episode) so far
-        self.best_reward = 0
-        # deque for the last 10 rewards
-        self.d = collections.deque(maxlen=10)
-        # Nmber of times the flag was reached
-        self.flag_get_sum = 0
+        # best accumulated reward so far
+        self.best_reward = -math.inf
 
-    def init_reward(self):
-        self.rewards = 0
+    # def store_action(self, info: dict, episode: int):
+    #     reward = info.get("reward")
+    #     normalized_reward = info.get("normalized_reward")
+    #     self.rewards += reward
+    #     self.logger.add_scalar("reward", reward, episode)
+    #     self.logger.add_scalar("normalized_reward", normalized_reward, episode)
 
-    def store_action(self, action: int, info: dict, episode: int):
-        reward = info.get("reward")
-        normalized_reward = info.get("normalized_reward")
-        self.actions.append(action)
-        self.rewards += reward
-        self.logger.add_scalar("reward", reward, episode)
-        self.logger.add_scalar("normalized_reward", normalized_reward, episode)
+    def end_of_episode(self, agent, info: dict, episode: int):
+        if not info or not info.get("episode"):
+            return
 
-    def end_of_episode(self, info, episode, save_actions=None):
-        get_flag = info.get("flag_get", False) if info is not None else False
-        self.d.append(self.rewards)
-        self.flag_get_sum += get_flag
-        avg_10 = mean(self.d) if len(self.d) > 2 else -1
-        std_10 = stdev(self.d) if len(self.d) > 2 else -1
-        if self.rewards > self.best_reward:
-            self.best_reward = self.rewards
-            if save_actions is None:
-                print(
-                    f'"WARNING tracker.end_of_episode: save_actions is None, skipping save_actions"'
-                )
-            else:
-                save_actions(self.actions, episode, self.rewards)
+        get_flag = info.get("flag_get", False)
+        episode_info = info.get("episode")
+        reward = episode_info["r"]
+        len = episode_info["l"]
+        avg = reward / len
+        time = episode_info["t"]
+        actions = episode_info["a"]
 
-        self.logger.add_scalar("rewards", self.rewards, episode)
-        self.logger.add_scalar("avg_10", avg_10, episode)
-        self.logger.add_scalar("std_10", std_10, episode)
-        self.logger.add_scalar("flag_get_sum", self.flag_get_sum, episode)
+        # store best reward so far
+        if reward > self.best_reward:
+            self.best_reward = reward
+            self.save_actions(actions, reward, episode)
 
+        # log some vars
         print(
-            f"Episode {episode}, rewards: {self.rewards:.1f}, best so far: {self.best_reward:.1f}, "
-            f"mean_10: {avg_10:.1f}, std_10: {std_10:.1f}"
+            f"# ep {episode}, r: {reward:.0f} (best:{self.best_reward:.0f}), avg: {avg:.2f}, len: {len}, time: {time:.0f}"
         )
+        self.logger.add_scalar("get_flag", get_flag, episode)
+        self.logger.add_scalar("episodic_return", reward, episode)
+        self.logger.add_scalar("episodic_length", len, episode)
+
+        # log agent LR
+        if agent.scheduler and agent.scheduler.get_last_lr():
+            current_lr = agent.scheduler.get_last_lr()[0]
+            self.logger.add_scalar("learning_rate", current_lr, episode)
+
+    def save_actions(self, actions, rewards, episode):
+        path = Path(
+            self.logger.actions_dir,
+            f"{self.algo}_actions_ep:{episode}_rw:{int(rewards)}.pt",
+        )
+        if not self.logger.actions_dir.exists():
+            print(f"WARNING save_actions: path doesn't exists, skipping save: {path}")
+        else:
+            torch.save(np.array(actions), path)

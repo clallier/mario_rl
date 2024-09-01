@@ -30,10 +30,9 @@ class AsyncMultiSims:
         states = np.asarray(states, dtype=np.float32)
 
         print("### envs reset, states: ", states.min(), states.max())
-
-        state2 = states.reshape([self.num_envs, -1, 30])
-        plt.imshow(state2[0])
-        plt.show()
+        # state2 = states.reshape([self.num_envs, -1, 30])
+        # plt.imshow(state2[0])
+        # plt.show()
         return states
 
     def step(self, actions):

@@ -34,6 +34,7 @@ class DPOTrainer(Trainer):
         device = self.device
         steps_envs_shape = (self.num_steps_per_update, self.num_envs)
         self.obs = torch.zeros(steps_envs_shape + self.obs_space_shape).to(device)
+        self.info = torch.zeros(steps_envs_shape + self.info_shape).to(device)
         self.actions = torch.zeros(steps_envs_shape + self.action_space_shape).to(
             device
         )
@@ -46,12 +47,14 @@ class DPOTrainer(Trainer):
         self.global_step = 0
         self.start_time = time.time()
         self.next_obs = self.to_tensor(self.sim.reset())
+        self.next_info = torch.zeros((self.num_envs,) + self.info_shape).to(device)
         self.next_done = torch.zeros(self.num_envs).to(device)
         self.num_updates = self.num_episodes // self.batch_size
 
         if self.debug:
             state = self.sim.reset()
-            debug_nn_size(self.agent.actor, state, device)
+            # debug_nn_size(self.agent.actor, state, device)
+            debug_count_params(self.agent.network)
             debug_count_params(self.agent.actor)
 
     def create_sim(self):
@@ -61,22 +64,25 @@ class DPOTrainer(Trainer):
     def create_agent(self):
         nn_hidden_size = self.config.get("nn_hidden_size", 128)
         nn_output_size = self.sim.single_action_space.n
-        return DPOAgent(self.common, nn_hidden_size, nn_output_size, self.config)
+        nn_info_size = self.info_shape[0]
+        return DPOAgent(
+            self.common, nn_info_size, nn_hidden_size, nn_output_size, self.config
+        )
 
     def load_complete_state(self, path):
         load_state = torch.load(path, weights_only=False)
         self.update = load_state["update"]
         self.global_step = load_state["global_step"]
         self.obs = load_state["obs"]
+        self.info = load_state["info"]
         self.log_probs = load_state["log_probs"]
         self.critic_values = load_state["critic_values"]
         self.actions = load_state["actions"]
         self.agent.optimizer.load_state_dict(load_state["optimizer"])
         self.agent.scheduler.load_state_dict(load_state["scheduler"])
-        model_state_dict = load_state["critic"]
-        self.agent.critic.load_state_dict(model_state_dict)
-        model_state_dict = load_state["actor"]
-        self.agent.actor.load_state_dict(model_state_dict)
+        self.agent.network.load_state_dict(load_state["network"])
+        self.agent.critic.load_state_dict(load_state["critic"])
+        self.agent.actor.load_state_dict(load_state["actor"])
         self.sim.load_state_dict(load_state["sim"])
 
     def save_complete_state(self, path):
@@ -86,11 +92,13 @@ class DPOTrainer(Trainer):
                 # episode
                 "global_step": self.global_step,
                 "obs": self.obs,
+                "info": self.info,
                 "log_probs": self.log_probs,
                 "critic_values": self.critic_values,
                 "actions": self.actions,
                 "optimizer": self.agent.optimizer.state_dict(),
                 "scheduler": self.agent.scheduler.state_dict(),
+                "network": self.network.critic.state_dict(),
                 "critic": self.agent.critic.state_dict(),
                 "actor": self.agent.actor.state_dict(),
                 "sim": self.sim.state_dict(),
@@ -99,10 +107,10 @@ class DPOTrainer(Trainer):
         )
 
     def train_init(self):
-        pass
+        return super().train_init()
 
-    def run_episode(self):
-        pass
+    def run_episode(self) -> dict:
+        return super().run_episode()
 
     def train(self):
         from_update = self.update + 1
@@ -111,13 +119,14 @@ class DPOTrainer(Trainer):
             for step in range(self.num_steps_per_update):
                 self.global_step += self.num_envs
                 self.obs[step] = self.next_obs
+                self.info[step] = self.next_info
                 self.dones[step] = self.next_done
 
                 # rollouts (no need for gradient)
                 with torch.no_grad():
-                    # 7, 1, 4, 30, 30
+                    # 7, 1, 4, 30, 30; 7
                     actions, log_probs, entropies, critic_values = (
-                        self.agent.get_action_and_critic(self.next_obs)
+                        self.agent.get_action_and_critic(self.next_obs, self.next_info)
                     )
                 self.actions[step] = actions
                 self.log_probs[step] = log_probs
@@ -125,9 +134,11 @@ class DPOTrainer(Trainer):
 
                 # step the envs
                 next_obs, reward, done, info = self.sim.step(actions.cpu().numpy())
-                rewards = np.array([i.get("normalized_reward") for i in info])
+                rewards = np.array([i.get("reward") for i in info])
+                print(f"r: {reward.item():.3f}")
                 self.rewards[step] = self.to_tensor(rewards)
                 self.next_obs = self.to_tensor(next_obs)
+                self.next_info = self.info_to_tensor(info)
                 self.next_done = self.to_tensor(done)
 
                 if self.debug:
@@ -135,27 +146,35 @@ class DPOTrainer(Trainer):
 
                 for item in info:
                     if "episode" in item.keys():
-                        e = item["episode"]
-                        self.logger.add_scalar(
-                            "episodic_return", e["r"], self.global_step
-                        )
-                        self.logger.add_scalar(
-                            "episodic_length", e["l"], self.global_step
-                        )
+                        self.log_end_of_episode(item["episode"])
             self.optimize_policy()
             self.logger.flush()
-            self.save_state()
+            # self.save_state()
         self.close()
 
+    def log_end_of_episode(self, episode_info: dict):
+        reward = episode_info["r"]
+        len = episode_info["l"]
+        avg = reward / len
+        time = episode_info["t"]
+        print(
+            f"# ep {self.global_step}, r: {reward:.2f}, avg: {avg:.2f}, len: {len}, time: {time:.0f}"
+        )
+        self.logger.add_scalar("episodic_return", reward, self.global_step)
+        self.logger.add_scalar("episodic_length", len, self.global_step)
+
     def optimize_policy(self):
+        self.sim.reset()
         # compute returns and avantages
         with torch.no_grad():
-            next_value = self.agent.get_critic_value(self.next_obs).reshape(1, -1)
+            next_values = self.agent.get_critic_value(
+                self.next_obs, self.next_info
+            ).reshape(1, -1)
             returns = torch.zeros_like(self.rewards).to(self.device)
             for t in reversed(range(self.num_steps_per_update)):
                 if t == self.num_steps_per_update - 1:
                     next_non_terminal = 1.0 - self.next_done
-                    next_return = next_value
+                    next_return = next_values
                 else:
                     next_non_terminal = 1.0 - self.dones[t + 1]
                     next_return = returns[t + 1]
@@ -170,6 +189,7 @@ class DPOTrainer(Trainer):
 
         # flatten the batch
         flatten_obs = self.obs.reshape((-1,) + self.obs_space_shape)
+        flatten_info = self.info.reshape((-1,) + self.info_shape)
         flatten_log_probs = self.log_probs.reshape(-1)
         flatten_actions = self.actions.reshape((-1,) + self.action_space_shape)
         flatten_advantages = advantages.reshape(-1)
@@ -186,9 +206,10 @@ class DPOTrainer(Trainer):
                 sub_idx = rnd_idx[start:end]
 
                 obs = flatten_obs[sub_idx]
+                info = flatten_info[sub_idx]
                 actions = flatten_actions[sub_idx]
                 new_action, new_log_prob, entropy, new_values = (
-                    self.agent.get_action_and_critic(obs, actions)
+                    self.agent.get_action_and_critic(obs, info, actions)
                 )
                 log_ratio = new_log_prob - flatten_log_probs[sub_idx]
                 ratio = log_ratio.exp()
@@ -235,16 +256,16 @@ class DPOTrainer(Trainer):
                 print("loss", loss.item())
                 self.agent.retropropagate(loss, self.max_grad_norm)
 
-            if self.target_kl is not None:
-                if approx_kl > self.target_kl:
-                    break
+            # if self.target_kl is not None:
+            #     if approx_kl > self.target_kl:
+            #         break
 
-            y_pred, y_true = flatten_values.cpu().numpy(), flatten_returns.cpu().numpy()
-            var_y = np.var(y_true)
-            explained_var = (
-                np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
-            )
-            print("explained_var", explained_var.item())
+            # y_pred, y_true = flatten_values.cpu().numpy(), flatten_returns.cpu().numpy()
+            # var_y = np.var(y_true)
+            # explained_var = (
+            #     np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
+            # )
+            # print("explained_var", explained_var.item())
 
             # self.logger.add_scalar(
             #     "charts/learning_rate",
