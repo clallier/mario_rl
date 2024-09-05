@@ -89,7 +89,6 @@ class Trainer(ABC):
             info = self.run_episode(episode)
             # end of episode
             self.tracker.end_of_episode(self.agent, info, episode)
-            self.end_of_episode(info, episode)
             self.logger.flush()
             if episode % self.save_freq == 0:
                 self.save_state()
@@ -101,10 +100,6 @@ class Trainer(ABC):
 
     @abstractmethod
     def run_episode(self, episode: int) -> dict:
-        pass
-
-    @abstractmethod
-    def end_of_episode(self, info: dict, episode: int):
         pass
 
     def save_state(self):

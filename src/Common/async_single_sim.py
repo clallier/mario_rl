@@ -38,8 +38,7 @@ class AsyncSingleSim:
     def close(self):
         loop = asyncio.get_event_loop()
         looper = asyncio.gather(self.close_env())
-        feedback = loop.run_until_complete(looper)[0]
-        return feedback
+        loop.run_until_complete(looper)[0]
 
     def state_dict(self) -> dict:
         state_dict = {}

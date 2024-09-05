@@ -109,7 +109,7 @@ class CustomReward(Wrapper):
         self.previous_coins = 0
         self.previous_score = 0
         self.previous_status = "small"
-        CustomReward.x_max = 2000
+        CustomReward.x_max = 1000
         CustomReward.y_min = 100
         CustomReward.y_max = 0
 
@@ -123,25 +123,23 @@ class CustomReward(Wrapper):
         score = info["score"] / 100
         status = (info["status"] != "small") * 1
         progress = x_pos / CustomReward.x_max
-
-        reward = -0.5 + progress  # + 0.1 * v_x
-
-        if progress > 1:
-            reward += 1
+        c = (progress * 2) ** 2
+        # reward = -0.5 + progress + 0.1 * v_x
+        reward = c
 
         if flag_get:
-            reward += 2000
+            reward += 2000 * c
         elif done and (y_pos < 75 or y_pos >= 252):
             # fall in a hole
-            reward -= 1800
+            reward -= 100
         elif done:
             # hit by a mob
-            reward -= 2000
+            reward -= 100
 
-        # d_coins = coins - self.previous_coins
-        # d_score = score - self.previous_score
-        # if d_coins or d_score:
-        #     reward += 100
+        d_coins = coins - self.previous_coins
+        d_score = score - self.previous_score
+        if d_coins or d_score:
+            reward += 100
 
         # reward += y * 5
 
@@ -163,6 +161,9 @@ class CustomReward(Wrapper):
 
     def reset(self):
         self.previous_x_pos = 0
+        self.previous_coins = 0
+        self.previous_score = 0
+        self.previous_status = "small"
         return self.env.reset()
 
     def state_dict(self):

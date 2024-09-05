@@ -214,6 +214,7 @@ class Tracker:
 
     def end_of_episode(self, agent, info: dict, episode: int):
         if not info or not info.get("episode"):
+            print("WARNING: tracker.end_of_episode, no info or info['episode']")
             return
 
         get_flag = info.get("flag_get", False)

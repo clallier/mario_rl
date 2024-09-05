@@ -39,7 +39,7 @@ class ReinforceTrainer(Trainer):
     #     self.logger.flush()
     #     self.close
 
-    def run_episode(self, episode):
+    def run_episode(self, episode) -> dict:
         actions, states, rewards, discounted_returns, losses = [], [], [], [], []
         done = False
         state = self.sim.reset()
@@ -58,7 +58,7 @@ class ReinforceTrainer(Trainer):
             state = next_state
 
         # discounted rewards
-        y = self.discount_factor  # discount_factor
+        y = self.discount_factor
         for t in range(len(rewards)):
             g = 0
             for k, r in enumerate(rewards[t:]):
@@ -82,6 +82,7 @@ class ReinforceTrainer(Trainer):
         self.length_episodes = self.length_episodes[-15:]
         sum_episodes = sum(self.length_episodes)
         self.logger.add_scalar("sliding_sum_episodes", sum_episodes, episode)
+        return info
 
     def eval_episode(self):
         rewards = []

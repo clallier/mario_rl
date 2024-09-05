@@ -59,9 +59,6 @@ class DQNNTrainer(Trainer):
                 self.sim.render()
         return info
 
-    def end_of_episode(self, info: dict, episode: int):
-        return super().end_of_episode(info, episode)
-
     def save_complete_state(self, path: Path):
         torch.save(
             {
