@@ -7,7 +7,6 @@ class NeatAgent:
         self.debug = debug
         self.sim = sim
         self.state = sim.reset()
-        self.fitness_raw = 0
         self.done = False
         self.info = {}
 
@@ -29,11 +28,12 @@ class NeatAgent:
         return output
 
     def update_fitness(self, next_state, reward, done, info):
-        self.fitness_raw += info['normalized_reward']
-        self.genome.fitness += info['reward']
-        self.genome.flag_get = info['flag_get']
+        if "episode" in info.keys():
+            self.genome.fitness = info["episode"]["r"].item()
+            self.genome.flag_get = info["flag_get"]
+            self.done = done
+
         self.state = next_state
-        self.done = done
         self.info = info
         if self.debug:
             self.debug_loop()

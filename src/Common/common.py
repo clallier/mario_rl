@@ -239,9 +239,12 @@ class Tracker:
         self.logger.add_scalar("episodic_length", len, episode)
 
         # log agent LR
-        if agent.scheduler and agent.scheduler.get_last_lr():
-            current_lr = agent.scheduler.get_last_lr()[0]
-            self.logger.add_scalar("learning_rate", current_lr, episode)
+        try:
+            if hasattr(agent, "scheduler") and agent.scheduler.get_last_lr():
+                current_lr = agent.scheduler.get_last_lr()[0]
+                self.logger.add_scalar("learning_rate", current_lr, episode)
+        except:
+            print("WARNING: cannot write agent LR")
 
     def save_actions(self, actions, rewards, episode):
         path = Path(

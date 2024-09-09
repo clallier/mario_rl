@@ -131,10 +131,10 @@ class CustomReward(Wrapper):
             reward += 2000 * c
         elif done and (y_pos < 75 or y_pos >= 252):
             # fall in a hole
-            reward -= 100
+            reward -= 500
         elif done:
             # hit by a mob
-            reward -= 100
+            reward -= 500
 
         d_coins = coins - self.previous_coins
         d_score = score - self.previous_score
@@ -153,10 +153,10 @@ class CustomReward(Wrapper):
             CustomReward.x_max = x_pos
         if y_pos < CustomReward.y_min:
             CustomReward.y_min = y_pos
-            print(f"### y_min: {CustomReward.y_min}")
+            # print(f"### y_min: {CustomReward.y_min}")
         if y_pos > CustomReward.y_max:
             CustomReward.y_max = y_pos
-            print(f"y_max: {CustomReward.y_max}")
+            # print(f"y_max: {CustomReward.y_max}")
         return state, reward, done, info
 
     def reset(self):

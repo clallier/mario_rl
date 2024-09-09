@@ -18,13 +18,13 @@ class Trainer(ABC):
 
         # config
         config_file_name = f"{self.algo}_config_file"
-        config_path = Common.get_file(
+        self.config_path = Common.get_file(
             f"./config_files/{common.config.get(config_file_name)}"
         )
 
-        self.version = self.get_version(config_path.stem)
-        self.config = common.load_config_file(config_path)
-        self.logger.add_file(config_path)
+        self.version = self.get_version(self.config_path.stem)
+        self.config = common.load_config_file(self.config_path)
+        self.logger.add_file(self.config_path)
 
         self.debug = common.config.get("debug")
         self.save_freq = common.config.get("save_freq", 100)
@@ -40,7 +40,7 @@ class Trainer(ABC):
 
     def get_version(self, config_path_stem: str):
         match = re.match(r".+.v(.+)", config_path_stem)
-        version = match.groups() if match else "0"
+        version = match.group(1) if match else "0"
         return "v" + version
 
     def close(self):
@@ -88,11 +88,14 @@ class Trainer(ABC):
             print(f"Episode {episode} started")
             info = self.run_episode(episode)
             # end of episode
-            self.tracker.end_of_episode(self.agent, info, episode)
-            self.logger.flush()
-            if episode % self.save_freq == 0:
-                self.save_state()
+            self.end_of_episode(info, episode)
         self.close()
+
+    def end_of_episode(self, info, episode):
+        self.tracker.end_of_episode(self.agent, info, episode)
+        self.logger.flush()
+        if episode % self.save_freq == 0:
+            self.save_state()
 
     @abstractmethod
     def train_init(self):
