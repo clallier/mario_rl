@@ -13,7 +13,7 @@ class NeatAgent:
         self.genome_key = genome.key
         self.genome = genome
         self.genome.fitness = 0
-        self.genome.flag_get = False
+        self.genome.info = {}
         self.config = config
         self.net = neat.nn.FeedForwardNetwork.create(self.genome, config)
 
@@ -30,13 +30,12 @@ class NeatAgent:
     def update_fitness(self, next_state, reward, done, info):
         if "episode" in info.keys():
             self.genome.fitness = info["episode"]["r"].item()
-            self.genome.flag_get = info["flag_get"]
+            self.genome.info = info
             self.done = done
 
         self.state = next_state
-        self.info = info
-        if self.debug:
-            self.debug_loop()
+        # if self.debug:
+        #     self.debug_loop()
         if self.done:
             self.sim.close()
 

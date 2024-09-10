@@ -26,7 +26,7 @@ class Trainer(ABC):
         self.config = common.load_config_file(self.config_path)
         self.logger.add_file(self.config_path)
 
-        self.debug = common.config.get("debug")
+        self.debug = common.debug
         self.save_freq = common.config.get("save_freq", 100)
         self.episode = 0
         self.num_episodes = self.config.get("NUM_OF_EPISODES")

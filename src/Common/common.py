@@ -1,5 +1,4 @@
 import asyncio
-import collections
 import math
 import os
 import pickle
@@ -8,7 +7,6 @@ import shutil
 from configparser import ConfigParser
 from datetime import datetime
 from pathlib import Path, PosixPath
-from statistics import mean, stdev
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -34,7 +32,7 @@ class Common:
         self.change_path()
         self.config = Common.load_config_file("main_config.toml")
         self.device = self.get_device()
-        self.debug = False
+        self.debug = self.config.get("debug", False)
         self.set_seed()
         load_dotenv()
 
@@ -232,7 +230,7 @@ class Tracker:
 
         # log some vars
         print(
-            f"# ep {episode}, r: {reward:.0f} (best:{self.best_reward:.0f}), avg: {avg:.2f}, len: {len}, time: {time:.0f}"
+            f"# ep {episode}, r: {reward:.0f} (best:{self.best_reward:.0f}), avg: {avg:.2f}, len: {len}, time: {time:.0f}, flag: {get_flag}"
         )
         self.logger.add_scalar("get_flag", get_flag, episode)
         self.logger.add_scalar("episodic_return", reward, episode)

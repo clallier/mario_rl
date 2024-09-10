@@ -42,7 +42,7 @@ class NEATTrainer(Trainer):
     def train(self):
         gen_num = int(self.config.get("META", {}).get("gen_num", 100))
         p = neat.Population(self.neat_config)
-        self.stats_logger = StatisticsLogger(self.logger)
+        self.stats_logger = StatisticsLogger(self.common, self, self.logger)
         p.add_reporter(self.stats_logger)
         p.run(self.eval_genomes, n=gen_num)
         return self.stats_logger.save()
@@ -78,12 +78,6 @@ class NEATTrainer(Trainer):
                 *[self.eval_agent(agents[i]) for i in range(len(agents))]
             )
             loop.run_until_complete(looper)
-
-        sorted_agents = sorted(agents, key=lambda a: a.genome.fitness)
-        best_agent = sorted_agents[-1]
-        generation = self.stats_logger.generation
-        print(f"End of gen: {generation}, best fitness: {best_agent.genome.fitness}")
-        self.end_of_episode(best_agent.info, generation)
 
     def eval_genomes_no_parallel(self, genomes, config):
         """
