@@ -2,8 +2,11 @@ import asyncio
 
 import gym
 import numpy as np
-from src.Common.common import background
-from src.Common.sim import Sim
+from src.Common.common import Common, background
+import gym_super_mario_bros
+from nes_py.wrappers import JoypadSpace
+from src.Common.common import Common
+from src.Common.wrapper import apply_wrappers
 
 
 class AsyncSingleSim:
@@ -53,8 +56,15 @@ class AsyncSingleSim:
     @background
     def make_env(self, common):
         print("Making env")
-        sim = Sim(common)
-        return sim.env
+        env_name = common.config.get("ENV_NAME")
+        env = gym_super_mario_bros.make(env_name)
+        env.metadata["render.modes"] = ["human", "rgb_array"]
+        env.metadata["apply_api_compatibility"] = True
+
+        env = JoypadSpace(self.env, Common.RIGHT_RUN)
+        env = apply_wrappers(self.env)
+        env.reset()
+        return env
 
     @background
     def reset_env(self):
@@ -71,8 +81,3 @@ class AsyncSingleSim:
     @background
     def close_env(self):
         return self.env.close()
-
-    @background
-    def render_env(self):
-        # RuntimeError: rendering from python threads is not supported
-        return self.env.render()

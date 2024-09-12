@@ -2,9 +2,11 @@ import asyncio
 
 import gym
 import numpy as np
-from src.Common.common import background
-from src.Common.sim import Sim
-from matplotlib import pyplot as plt
+from src.Common.common import Common, background
+import gym_super_mario_bros
+from nes_py.wrappers import JoypadSpace
+from src.Common.common import Common
+from src.Common.wrapper import apply_wrappers
 
 
 class AsyncMultiSims:
@@ -79,9 +81,16 @@ class AsyncMultiSims:
 
     @background
     def make_env(self, common, i):
-        print(f"Making env idx:{i}")
-        sim = Sim(common)
-        return sim.env
+        # print(f"Making env idx:{i}")
+        env_name = common.config.get("ENV_NAME")
+        env = gym_super_mario_bros.make(env_name)
+        env.metadata["render.modes"] = ["human", "rgb_array"]
+        env.metadata["apply_api_compatibility"] = True
+
+        env = JoypadSpace(env, Common.RIGHT_RUN)
+        env = apply_wrappers(env)
+        env.reset()
+        return env
 
     @background
     def reset_env(self, i):

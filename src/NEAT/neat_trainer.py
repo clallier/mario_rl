@@ -1,4 +1,6 @@
 from pathlib import Path
+from src.Common.async_multi_sim import AsyncMultiSims
+from src.Common.async_single_sim import AsyncSingleSim
 from src.Common.sim import Sim
 from src.Common.common import background
 import neat
@@ -52,8 +54,8 @@ class NEATTrainer(Trainer):
         agent = NeatAgent(genome, self.neat_config, sim, True)
 
         while not agent.done:
-            action = agent.choose_action(agent.state)
-            agent.sim.step(action)
+            action = agent.choose_action(agent.prev_state)
+            agent.env.step(action)
 
     def eval_genomes(self, genomes, config):
         """
@@ -63,9 +65,15 @@ class NEATTrainer(Trainer):
         :return:
         """
         print("creating agents pop")
+        self.sims = AsyncMultiSims(self.common, len(genomes))
+        states = self.sims.reset()
+
         loop = asyncio.get_event_loop()
         looper = asyncio.gather(
-            *[self.new_agent(config, genome, i) for i, genome in enumerate(genomes)]
+            *[
+                self.new_agent(config, genome, states[i])
+                for i, genome in enumerate(genomes)
+            ]
         )
         agents = loop.run_until_complete(looper)
 
@@ -75,9 +83,13 @@ class NEATTrainer(Trainer):
         while any([not agent.done for agent in agents]):
             # loop = asyncio.get_event_loop()
             looper = asyncio.gather(
-                *[self.eval_agent(agents[i]) for i in range(len(agents))]
+                *[self.eval_agent(agents[i], i) for i in range(len(agents))]
             )
             loop.run_until_complete(looper)
+            if self.common.debug:
+                self.sims.render()
+
+        self.sims.close()
 
     def eval_genomes_no_parallel(self, genomes, config):
         """
@@ -88,8 +100,8 @@ class NEATTrainer(Trainer):
         """
         agents = []
         # create agent for each genome
-        for i, genome in enumerate(genomes):
-            agents.append(self.new_agent(config, genome, i))
+        for genome in genomes:
+            agents.append(self.new_agent(config, genome))
 
         # run the sim step by step for each agent
         # until all agents are done
@@ -98,20 +110,17 @@ class NEATTrainer(Trainer):
                 self.eval_agent(agent)
 
     @background
-    def new_agent(self, config, genome, i):
+    def new_agent(self, config, genome, init_state):
         if config == None or genome == None:
             return
-
-        return NeatAgent(
-            genome[1], config, Sim(self.common), self.common.debug and i == 0
-        )
+        return NeatAgent(genome[1], config, init_state)
 
     @background
-    def eval_agent(self, agent: NeatAgent):
+    def eval_agent(self, agent: NeatAgent, i: int):
         if not agent.done:
-            action = agent.choose_action(agent.state)
-            next_state, reward, done, info = agent.sim.step(action)
-            agent.update_fitness(next_state, reward, done, info)
+            action = agent.choose_action(agent.prev_state)
+            state, _, done, info = self.sims.envs[i].step(action)
+            agent.update_fitness(state, done, info)
 
     def save_complete_state(self, path: Path):
         pass

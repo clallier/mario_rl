@@ -3,10 +3,8 @@ import numpy as np
 
 
 class NeatAgent:
-    def __init__(self, genome, config, sim, debug=False):
-        self.debug = debug
-        self.sim = sim
-        self.state = sim.reset()
+    def __init__(self, genome, config, init_state):
+        self.prev_state = init_state
         self.done = False
         self.info = {}
 
@@ -21,26 +19,14 @@ class NeatAgent:
         # flatten the state
         state = np.array(state).flatten()
         output = self.net.activate(state)
-        if self.debug:
-            print(f"output: {output}")
-        # output (relu activation) to binary action
-        output = 1 if output[0] > 0.5 else 0
+        # print(f"output: {output}")
+        # output to action
+        output = output.index(max(output))
         return output
 
-    def update_fitness(self, next_state, reward, done, info):
+    def update_fitness(self, state, done, info):
+        self.prev_state = state
         if "episode" in info.keys():
             self.genome.fitness = info["episode"]["r"].item()
             self.genome.info = info
             self.done = done
-
-        self.state = next_state
-        # if self.debug:
-        #     self.debug_loop()
-        if self.done:
-            self.sim.close()
-
-    def debug_loop(self):
-        try:
-            self.sim.env.render()
-        finally:
-            print(self.done, self.genome.fitness, self.info)
