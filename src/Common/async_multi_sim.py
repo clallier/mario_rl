@@ -31,7 +31,7 @@ class AsyncMultiSims:
         states = loop.run_until_complete(looper)
         states = np.asarray(states, dtype=np.float32)
 
-        print("### envs reset, states: ", states.min(), states.max())
+        # print("### envs reset, states: ", states.min(), states.max())
         # state2 = states.reshape([self.num_envs, -1, 30])
         # plt.imshow(state2[0])
         # plt.show()
@@ -81,7 +81,6 @@ class AsyncMultiSims:
 
     @background
     def make_env(self, common, i):
-        # print(f"Making env idx:{i}")
         env_name = common.config.get("ENV_NAME")
         env = gym_super_mario_bros.make(env_name)
         env.metadata["render.modes"] = ["human", "rgb_array"]

@@ -56,11 +56,10 @@ class StatisticsLogger(neat.StatisticsReporter):
         best_species_id = species.get_species_id(best.key)
         self.logger.add_histogram("Finesses", pop_fitnesses, self.generation)
         print(
-            f"Pop's average fit: {pop_fitnesses_mean:3.5f} std: {pop_fitnesses_std:3.5f}"
+            f"Pop's average fit: {pop_fitnesses_mean:.2f} std: {pop_fitnesses_std:.2f}"
         )
         print(
-            f"Best fit: {best.fitness:3.5f} - size: {best.size()!r}"
-            f" - species {best_species_id} - id {best.key}"
+            f"Best fit: {best.fitness:.2f} - size: {best.size()!r} - species {best_species_id} - id {best.key}"
         )
         self.logger.add_scalar("Pop fitness avg", pop_fitnesses_mean, self.generation)
         self.logger.add_scalar("Pop fitness std", pop_fitnesses_std, self.generation)

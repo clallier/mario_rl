@@ -1,6 +1,7 @@
 from pathlib import Path
+from pprint import pp
+import time
 from src.Common.async_multi_sim import AsyncMultiSims
-from src.Common.async_single_sim import AsyncSingleSim
 from src.Common.sim import Sim
 from src.Common.common import background
 import neat
@@ -9,14 +10,11 @@ from src.Common.trainer import Trainer
 from src.NEAT.neat_agent import NeatAgent
 from src.NEAT.neat_statistics_logger import StatisticsLogger
 import asyncio
+import pickle
 
 
 # from Tech with Tim:
 # https://www.youtube.com/watch?v=wQWWzBHUJWM
-
-# TODO:
-# - wandb: more logs
-# - store population every n steps
 
 
 class NEATTrainer(Trainer):
@@ -34,19 +32,17 @@ class NEATTrainer(Trainer):
             neat.DefaultStagnation,
             self.config_path,
         )
+        self.population = neat.Population(self.neat_config)
+        self.stats_logger = StatisticsLogger(self.common, self, self.logger)
+        self.population.add_reporter(self.stats_logger)
 
-    def train_init():
-        return super.train_init()
-
-    def run_episode() -> dict:
-        return super.run_episode()
+    def train_init(self):
+        pass
 
     def train(self):
         gen_num = int(self.config.get("META", {}).get("gen_num", 100))
-        p = neat.Population(self.neat_config)
-        self.stats_logger = StatisticsLogger(self.common, self, self.logger)
-        p.add_reporter(self.stats_logger)
-        p.run(self.eval_genomes, n=gen_num)
+        self.population.run(self.run_episode, n=gen_num)
+
         return self.stats_logger.save()
 
     def test(self, genome):
@@ -57,16 +53,19 @@ class NEATTrainer(Trainer):
             action = agent.choose_action(agent.prev_state)
             agent.env.step(action)
 
-    def eval_genomes(self, genomes, config):
+    def run_episode(self, genomes, config) -> dict:
         """
         Compute the fitness of the genomes by running the game with the genomes and return the fitness of each genome.
         :param genomes:
         :param config:
         :return:
         """
+        self.episode = self.population.generation
+
         print("creating agents pop")
-        self.sims = AsyncMultiSims(self.common, len(genomes))
-        states = self.sims.reset()
+        # TODO create_sim?
+        self.sim = AsyncMultiSims(self.common, len(genomes))
+        states = self.sim.reset()
 
         loop = asyncio.get_event_loop()
         looper = asyncio.gather(
@@ -87,27 +86,16 @@ class NEATTrainer(Trainer):
             )
             loop.run_until_complete(looper)
             if self.common.debug:
-                self.sims.render()
+                self.sim.render()
 
-        self.sims.close()
-
-    def eval_genomes_no_parallel(self, genomes, config):
-        """
-        Compute the fitness of the genomes by running the game with the genomes and return the fitness of each genome.
-        :param genomes:
-        :param config:
-        :return:
-        """
-        agents = []
-        # create agent for each genome
-        for genome in genomes:
-            agents.append(self.new_agent(config, genome))
-
-        # run the sim step by step for each agent
-        # until all agents are done
-        while any([not agent.done for agent in agents]):
-            for agent in agents:
-                self.eval_agent(agent)
+        if self.common.debug:
+            i = agents.index(max(agents, key=lambda a: a.genome.fitness))
+            b = agents[i].genome
+            self.sim.envs[i].render()
+            print("### best:")
+            pp(b.info, width=120, compact=True)
+            time.sleep(3)
+        self.sim.close()
 
     @background
     def new_agent(self, config, genome, init_state):
@@ -119,11 +107,28 @@ class NEATTrainer(Trainer):
     def eval_agent(self, agent: NeatAgent, i: int):
         if not agent.done:
             action = agent.choose_action(agent.prev_state)
-            state, _, done, info = self.sims.envs[i].step(action)
+            state, _, done, info = self.sim.envs[i].step(action)
             agent.update_fitness(state, done, info)
 
     def save_complete_state(self, path: Path):
-        pass
+        state = (
+            self.population.population,
+            self.population.species.genome_to_species,
+            self.population.species.species,
+            self.population.generation,
+            self.population.best_genome,
+        )
+        with open(path, "wb") as f:
+            pickle.dump(state, f)
 
     def load_complete_state(self, path: Path):
-        pass
+        with open(path, "rb") as f:
+            state = pickle.load(f)
+            (
+                self.population.population,
+                self.population.species.genome_to_species,
+                self.population.species.species,
+                self.population.generation,
+                self.population.best_genome,
+            ) = state
+            self.population.generation += 1

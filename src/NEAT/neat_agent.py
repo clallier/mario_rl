@@ -6,8 +6,6 @@ class NeatAgent:
     def __init__(self, genome, config, init_state):
         self.prev_state = init_state
         self.done = False
-        self.info = {}
-
         self.genome_key = genome.key
         self.genome = genome
         self.genome.fitness = 0
@@ -26,7 +24,10 @@ class NeatAgent:
 
     def update_fitness(self, state, done, info):
         self.prev_state = state
-        if "episode" in info.keys():
-            self.genome.fitness = info["episode"]["r"].item()
-            self.genome.info = info
-            self.done = done
+        self.genome.info = info
+        self.done = done
+        self.genome.fitness = (
+            info["episode"]["r"].item()
+            if "episode" in info.keys()
+            else info["x_pos"].item()
+        )

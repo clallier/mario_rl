@@ -27,11 +27,12 @@ class Trainer(ABC):
         self.logger.add_file(self.config_path)
 
         self.debug = common.debug
-        self.save_freq = common.config.get("save_freq", 100)
+        self.use_save_states = common.config.get("use_save_states", True)
+        self.save_states_freq = common.config.get("save_states_freq", 100)
         self.episode = 0
         self.num_episodes = self.config.get("NUM_OF_EPISODES")
+        self.info_shape = common.config.get("info_shape", (6,))
         self.device = common.device
-        self.info_shape = (6,)
 
         self.sim = self.create_sim()
         self.agent = self.create_agent()
@@ -94,7 +95,7 @@ class Trainer(ABC):
     def end_of_episode(self, info, episode):
         self.tracker.end_of_episode(self.agent, info, episode)
         self.logger.flush()
-        if episode % self.save_freq == 0:
+        if self.use_save_states and (episode + 1) % self.save_states_freq == 0:
             self.save_state()
 
     @abstractmethod
@@ -112,12 +113,15 @@ class Trainer(ABC):
             print(f"WARNING save_state: path already exists, skipping save: {path}")
             return
         self.save_complete_state(path)
+        print("state saved!")
 
     @abstractmethod
     def save_complete_state(self, path: Path):
         pass
 
     def load_state(self):
+        if not self.use_save_states:
+            return
         path_dir = Path(self.logger.checkpoint_dir)
         ckpt_found = False
         p = path_dir.glob("*.pt")
@@ -135,6 +139,7 @@ class Trainer(ABC):
                 self.logger.checkpoint_dir, f"{self.algo}_{self.version}_last.pt"
             )
             self.load_complete_state(path)
+            print("state loaded!")
 
     @abstractmethod
     def load_complete_state(self, path: Path):

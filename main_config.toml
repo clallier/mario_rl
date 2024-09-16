@@ -1,8 +1,10 @@
 seed = 0
 debug = true
 use_gpu = true
+
 # save freq in episodes
-save_freq = -50
+use_save_states = true
+save_states_freq = 50
 
 # env_name: 'CartPole-v1', 'SuperMarioBros-1-1-v3'
 ENV_NAME = "SuperMarioBros-1-1-v3"

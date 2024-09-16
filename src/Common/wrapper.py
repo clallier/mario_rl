@@ -109,41 +109,56 @@ class CustomReward(Wrapper):
         self.previous_coins = 0
         self.previous_score = 0
         self.previous_status = "small"
-        CustomReward.x_max = 1000
-        CustomReward.y_min = 100
-        CustomReward.y_max = 0
+        self.time_since_last_x_move = 0
+        CustomReward.x_max = 2500
 
     def step(self, action):
         state, reward, done, info = self.env.step(action)
+        info["timeout"] = False
         x_pos = info["x_pos"].item()
         y_pos = info["y_pos"].item()
-        v_x = 0.1 * abs(x_pos - self.previous_x_pos)
+        time = (400 - info["time"]) / 400
         flag_get = info["flag_get"]
         coins = info["coins"]
         score = info["score"] / 100
-        status = (info["status"] != "small") * 1
+        status = info["status"]
+        # lives = info["life"].item()
+
+        if status != self.previous_status:
+            print(f"new status is: {status}")
+
         progress = x_pos / CustomReward.x_max
-        c = (progress * 2) ** 2
-        # reward = -0.5 + progress + 0.1 * v_x
-        reward = c
+        dx = x_pos - self.previous_x_pos
+
+        if dx <= 0:
+            self.time_since_last_x_move += 1
+        else:
+            self.time_since_last_x_move = 0
+
+        # timeout
+        if self.time_since_last_x_move > 15:
+            done = True
+            info["timeout"] = True
+
+        reward = dx
 
         if flag_get:
-            reward += 2000 * c
+            reward += 2000
+        # fall in a hole
         elif done and (y_pos < 75 or y_pos >= 252):
-            # fall in a hole
             reward -= 500
-        elif done:
-            # hit by a mob
+        # probably hitten by a mob
+        elif done and not info["timeout"] and time < 1:
             reward -= 500
+
+        # end of run: add overall progress
+        if done:
+            reward += 2000 * progress
 
         d_coins = coins - self.previous_coins
         d_score = score - self.previous_score
         if d_coins or d_score:
             reward += 100
-
-        # reward += y * 5
-
-        # d_status = status - self.previous_status
 
         self.previous_x_pos = x_pos
         self.previous_coins = coins
@@ -151,12 +166,6 @@ class CustomReward(Wrapper):
         self.previous_status = status
         if x_pos > CustomReward.x_max:
             CustomReward.x_max = x_pos
-        if y_pos < CustomReward.y_min:
-            CustomReward.y_min = y_pos
-            # print(f"### y_min: {CustomReward.y_min}")
-        if y_pos > CustomReward.y_max:
-            CustomReward.y_max = y_pos
-            # print(f"y_max: {CustomReward.y_max}")
         return state, reward, done, info
 
     def reset(self):
