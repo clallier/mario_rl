@@ -92,7 +92,7 @@ class NEATTrainer(Trainer):
             i = agents.index(max(agents, key=lambda a: a.genome.fitness))
             b = agents[i].genome
             self.sim.envs[i].render()
-            print("### best:")
+            print(f"### best, id:{b.key}, fit: {b.fitness}, ")
             pp(b.info, width=120, compact=True)
             time.sleep(3)
         self.sim.close()

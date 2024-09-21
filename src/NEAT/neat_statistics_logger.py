@@ -53,14 +53,19 @@ class StatisticsLogger(neat.StatisticsReporter):
         pop_fitnesses = np.array([c.fitness for c in population.values()])
         pop_fitnesses_mean = pop_fitnesses.mean()
         pop_fitnesses_std = pop_fitnesses.std()
-        best_species_id = species.get_species_id(best.key)
+        print(f"Pop average fit: {pop_fitnesses_mean:.2f} std: {pop_fitnesses_std:.2f}")
+
+        try:
+            best_species_id = species.get_species_id(best.key)
+            print(
+                f"Best fit: {best.fitness:.2f}, size: {best.size()!r}, species {best_species_id}, id {best.key}"
+            )
+        except:
+            print(
+                f"WARNING: error with species.get_species_id(best.key), best.key: {best.key}"
+            )
+
         self.logger.add_histogram("Finesses", pop_fitnesses, self.generation)
-        print(
-            f"Pop's average fit: {pop_fitnesses_mean:.2f} std: {pop_fitnesses_std:.2f}"
-        )
-        print(
-            f"Best fit: {best.fitness:.2f} - size: {best.size()!r} - species {best_species_id} - id {best.key}"
-        )
         self.logger.add_scalar("Pop fitness avg", pop_fitnesses_mean, self.generation)
         self.logger.add_scalar("Pop fitness std", pop_fitnesses_std, self.generation)
 

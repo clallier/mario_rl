@@ -114,7 +114,7 @@ class CustomReward(Wrapper):
 
     def step(self, action):
         state, reward, done, info = self.env.step(action)
-        info["timeout"] = False
+        timeout = False
         x_pos = info["x_pos"].item()
         y_pos = info["y_pos"].item()
         time = (400 - info["time"]) / 400
@@ -122,43 +122,48 @@ class CustomReward(Wrapper):
         coins = info["coins"]
         score = info["score"] / 100
         status = info["status"]
-        # lives = info["life"].item()
 
         if status != self.previous_status:
             print(f"new status is: {status}")
 
-        progress = x_pos / CustomReward.x_max
+        # dx
         dx = x_pos - self.previous_x_pos
-
-        if dx <= 0:
-            self.time_since_last_x_move += 1
-        else:
-            self.time_since_last_x_move = 0
-
-        # timeout
-        if self.time_since_last_x_move > 15:
-            done = True
-            info["timeout"] = True
-
         reward = dx
 
-        if flag_get:
-            reward += 2000
-        # fall in a hole
-        elif done and (y_pos < 75 or y_pos >= 252):
-            reward -= 500
-        # probably hitten by a mob
-        elif done and not info["timeout"] and time < 1:
-            reward -= 500
-
-        # end of run: add overall progress
-        if done:
-            reward += 2000 * progress
-
+        # bonus
         d_coins = coins - self.previous_coins
         d_score = score - self.previous_score
         if d_coins or d_score:
             reward += 100
+
+        # compute staagntion timeout
+        self.time_since_last_x_move = self.time_since_last_x_move + 1 if dx <= 0 else 0
+
+        # timeout
+        if self.time_since_last_x_move > 15:
+            done = True
+            timeout = True
+            reward -= 500
+            info["done_reason"] = "timeout"
+
+        if flag_get:
+            reward += 2000
+
+        # fall in a hole
+        elif done and (y_pos < 75 or y_pos >= 252):
+            reward -= 500
+            info["done_reason"] = "hole"
+
+        # probably hitten by a mob
+        elif done and not timeout and time < 1:
+            reward -= 500
+            info["done_reason"] = "mob"
+
+        # end of run: add overall progress
+        if done:
+            progress = x_pos / CustomReward.x_max
+            reward += 2000 * progress
+            info["progress"] = progress
 
         self.previous_x_pos = x_pos
         self.previous_coins = coins

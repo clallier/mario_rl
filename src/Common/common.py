@@ -222,6 +222,7 @@ class Tracker:
         avg = reward / len
         time = episode_info["t"]
         actions = episode_info["a"]
+        progress = info.get("progress", 0)
 
         # store best reward so far
         if reward > self.best_reward:
@@ -230,7 +231,8 @@ class Tracker:
 
         # log some vars
         print(
-            f"# ep {episode}, r: {reward:.0f} (best:{self.best_reward:.0f}), avg: {avg:.2f}, len: {len}, time: {time:.0f}, flag: {get_flag}"
+            f"# ep {episode}, r: {reward:.0f} (best:{self.best_reward:.0f}), avg: {avg:.2f}, "
+            + f"len: {len}, time: {time:.0f}, progress: {progress:.2f}, flag: {get_flag}"
         )
         self.logger.add_scalar("get_flag", get_flag, episode)
         self.logger.add_scalar("episodic_return", reward, episode)
