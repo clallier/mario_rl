@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import time
 
 from pathlib import Path
 from skvideo.io import vwrite
@@ -31,7 +30,6 @@ def test_from_actions(actions: [], common: Common, output_video_path=None):
         else:
             sim.render()
 
-    time.sleep(3)
     sim.close()
 
     if output_video_path:
