@@ -1,4 +1,3 @@
-import math
 import numpy as np
 from gym import Wrapper
 from gym.wrappers import (
@@ -110,7 +109,7 @@ class CustomReward(Wrapper):
         self.previous_score = 0
         self.previous_status = "small"
         self.time_since_last_x_move = 0
-        CustomReward.x_max = 2500
+        CustomReward.x_max = 3000
 
     def step(self, action):
         state, reward, done, info = self.env.step(action)
@@ -136,8 +135,10 @@ class CustomReward(Wrapper):
         if d_coins or d_score:
             reward += 100
 
-        # compute staagntion timeout
+        # compute stagnation timeout
         self.time_since_last_x_move = self.time_since_last_x_move + 1 if dx <= 0 else 0
+        if dx > 0:
+            self.time_since_last_x_move = 0
 
         # timeout
         if self.time_since_last_x_move > 15:
