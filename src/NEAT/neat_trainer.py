@@ -1,7 +1,7 @@
 from pathlib import Path
 from pprint import pp
-import time
 from src.Common.async_multi_sim import AsyncMultiSims
+from src.Common.run_from_actions import test_from_actions
 from src.Common.sim import Sim
 from src.Common.common import background
 import neat
@@ -63,7 +63,7 @@ class NEATTrainer(Trainer):
         self.episode = self.population.generation
 
         print("creating agents pop")
-        # TODO create_sim?
+        # TODO: create_sim?
         self.sim = AsyncMultiSims(self.common, len(genomes))
         states = self.sim.reset()
 
@@ -85,21 +85,21 @@ class NEATTrainer(Trainer):
                 *[self.eval_agent(agents[i], i) for i in range(len(agents))]
             )
             loop.run_until_complete(looper)
-            if self.common.debug:
-                self.sim.render()
 
-        if self.common.debug:
-            i = agents.index(max(agents, key=lambda a: a.genome.fitness))
-            b = agents[i].genome
-            self.sim.envs[i].render()
-            print(f"### best, id:{b.key}, fit: {b.fitness}, ")
-            pp(b.info, width=120, compact=True)
-            time.sleep(3)
         self.sim.close()
+
+        if self.common.debug and self.episode % 10 == 0:
+            i = agents.index(max(agents, key=lambda a: a.genome.fitness))
+            g = agents[i].genome
+            print(f"### best, id:{g.key}, fit: {g.fitness}, ")
+            pp(g.info, width=120, compact=True)            
+            # self.sim.envs[i].render()
+            actions = g.info.get("episode").get("a")
+            test_from_actions(actions, self.common)
 
     @background
     def new_agent(self, config, genome, init_state):
-        if config == None or genome == None:
+        if config is None or genome is None:
             return
         return NeatAgent(genome[1], config, init_state)
 

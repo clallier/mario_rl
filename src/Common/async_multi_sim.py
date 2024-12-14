@@ -5,7 +5,6 @@ import numpy as np
 from src.Common.common import Common, background
 import gym_super_mario_bros
 from nes_py.wrappers import JoypadSpace
-from src.Common.common import Common
 from src.Common.wrapper import apply_wrappers
 
 

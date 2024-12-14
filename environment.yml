@@ -4,7 +4,7 @@
 # conda env create --file environment.yml
 # conda activate mario_rl
 #
-# conda deactivate && conda env remove --name mario_rl && conda env create --file environment.yml && conda activate mario_rl
+# conda deactivate && conda env remove --name mario_rl -y && conda env create --file environment.yml -y && conda activate mario_rl
 #
 # tensorboard --logdir runs
 
@@ -22,7 +22,11 @@ dependencies:
   - tensordict
   - matplotlib
   - ffmpeg
+  # numpy <2.0.0 permits to avoid the "OverflowError: Python integer 1024 out of bounds for uint8" in nes_py
+  # see https://stackoverflow.com/questions/78757000/overflowerror-when-setting-up-gym-super-mario-bros-environment-in-python-on-jupy
+  - numpy<2.0.0
   - conda-forge::pygraphviz
+  # conda-forge::gymnasium=1.0.0
   - pip
   - pip:
       - gym_super_mario_bros==7.4.0
@@ -36,3 +40,4 @@ dependencies:
       - neat-python
       - wandb
       - python-dotenv
+      - ruff

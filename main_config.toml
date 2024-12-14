@@ -20,4 +20,4 @@ dqnn_config_file = "dqnn_config.toml"
 
 # loggers
 start_tensorboard = false
-start_wandb = true
+start_wandb = false

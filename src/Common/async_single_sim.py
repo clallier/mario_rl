@@ -5,7 +5,6 @@ import numpy as np
 from src.Common.common import Common, background
 import gym_super_mario_bros
 from nes_py.wrappers import JoypadSpace
-from src.Common.common import Common
 from src.Common.wrapper import apply_wrappers
 
 
@@ -61,8 +60,8 @@ class AsyncSingleSim:
         env.metadata["render.modes"] = ["human", "rgb_array"]
         env.metadata["apply_api_compatibility"] = True
 
-        env = JoypadSpace(self.env, Common.RIGHT_RUN)
-        env = apply_wrappers(self.env)
+        env = JoypadSpace(env, Common.RIGHT_RUN)
+        env = apply_wrappers(env)
         env.reset()
         return env
 
