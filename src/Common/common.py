@@ -223,6 +223,7 @@ class Tracker:
         time = episode_info["t"]
         actions = episode_info["a"]
         progress = info.get("progress", 0)
+        x_pos = info.get("x_pos", 0)
 
         # store best reward so far
         if reward > self.best_reward:
@@ -231,20 +232,22 @@ class Tracker:
 
         # log some vars
         print(
-            f"# ep {episode}, r: {reward:.0f} (best:{self.best_reward:.0f}), avg: {avg:.2f}, "
-            + f"len: {len}, time: {time:.0f}, progress: {progress:.2f}, flag: {get_flag}"
+            f"# ep {episode}, r: {reward:.0f}, avg: {avg:.2f}, x_pos: {x_pos:.2f}, "
+            + f"len: {len}, time: {time:.0f}, progress: {progress:.2f}, reason: {info['reason']}, flag: {get_flag}"
         )
         self.logger.add_scalar("get_flag", get_flag, episode)
         self.logger.add_scalar("episodic_return", reward, episode)
         self.logger.add_scalar("episodic_length", len, episode)
+        self.logger.add_scalar("progress", progress, episode)
+        self.logger.add_scalar("x_pos", x_pos, episode)
 
         # log agent LR
         try:
             if hasattr(agent, "scheduler") and agent.scheduler.get_last_lr():
                 current_lr = agent.scheduler.get_last_lr()[0]
                 self.logger.add_scalar("learning_rate", current_lr, episode)
-        except:
-            print("WARNING: cannot write agent LR")
+        except Exception as e:
+            print(f"WARNING: cannot write agent LR: {e}")
 
     def save_actions(self, actions, rewards, episode):
         path = Path(
