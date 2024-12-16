@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from src.Common.common import Common, Logger, Tracker
-
+from src.Common.run_from_actions import test_from_actions
 
 class Trainer(ABC):
     def __init__(self, common: Common, algo: str):
@@ -92,7 +92,9 @@ class Trainer(ABC):
         self.tracker.end_of_episode(self.agent, info, episode)
         self.logger.flush()
         if self.use_save_states and episode % self.save_states_freq == 0:
-            self.save_state()
+            path = self.save_state()
+            actions = info.get("episode").get("a")
+            test_from_actions(actions, self.common, path)
 
     @abstractmethod
     def train_init(self):
@@ -110,6 +112,7 @@ class Trainer(ABC):
             return
         self.save_complete_state(path)
         print("state saved!")
+        return path
 
     @abstractmethod
     def save_complete_state(self, path: Path):

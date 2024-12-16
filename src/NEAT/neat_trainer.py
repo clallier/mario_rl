@@ -60,9 +60,10 @@ class NEATTrainer(Trainer):
         :param config:
         :return:
         """
+        len_genomes = len(genomes)
         self.episode = self.population.generation
 
-        print("creating agents pop")
+        print(f"creating agents pop {len_genomes}")
         # TODO: create_sim?
         self.sim = AsyncMultiSims(self.common, len(genomes))
         states = self.sim.reset()
@@ -121,8 +122,6 @@ class NEATTrainer(Trainer):
         )
         with open(path, "wb") as f:
             pickle.dump(state, f)
-        actions = self.population.best_genome.info.get("episode").get("a")
-        test_from_actions(actions, self.common, path)
 
     def load_complete_state(self, path: Path):
         with open(path, "rb") as f:
