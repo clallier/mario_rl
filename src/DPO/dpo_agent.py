@@ -5,7 +5,6 @@ from torch.optim import AdamW, lr_scheduler
 
 
 class DPOAgent:
-
     def __init__(self, common, nn_info_size, nn_hidden_size, nn_output_size, config):
         self.common = common
         self.config = config

@@ -92,7 +92,7 @@ class NEATTrainer(Trainer):
             i = agents.index(max(agents, key=lambda a: a.genome.fitness))
             g = agents[i].genome
             print(f"### best, id:{g.key}, fit: {g.fitness}, ")
-            pp(g.info, width=120, compact=True)            
+            pp(g.info, width=120, compact=True)
             # self.sim.envs[i].render()
             actions = g.info.get("episode").get("a")
             test_from_actions(actions, self.common)

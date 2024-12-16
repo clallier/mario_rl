@@ -9,7 +9,6 @@ from src.Common.common import Common, Logger, Tracker
 
 
 class Trainer(ABC):
-
     def __init__(self, common: Common, algo: str):
         self.algo = algo.lower()
         self.common = common
@@ -54,14 +53,16 @@ class Trainer(ABC):
         return torch.tensor(arr, dtype=dtype, device=self.device)
 
     def info_to_tensor(self, info: np.array):
-        arr = np.array([
-                    info.get("x_pos", 0),
-                    info.get("y_pos", 80),
-                    info.get("flag_get", 0),
-                    info.get("coins", 0),
-                    info.get("score", 0),
-                    info.get("time", 400),
-        ])    
+        arr = np.array(
+            [
+                info.get("x_pos", 0),
+                info.get("y_pos", 80),
+                info.get("flag_get", 0),
+                info.get("coins", 0),
+                info.get("score", 0),
+                info.get("time", 400),
+            ]
+        )
         return torch.tensor(arr, dtype=torch.float32, device=self.device)
 
     @abstractmethod
@@ -90,7 +91,7 @@ class Trainer(ABC):
     def end_of_episode(self, info, episode):
         self.tracker.end_of_episode(self.agent, info, episode)
         self.logger.flush()
-        if self.use_save_states and (episode + 1) % self.save_states_freq == 0:
+        if self.use_save_states and episode % self.save_states_freq == 0:
             self.save_state()
 
     @abstractmethod

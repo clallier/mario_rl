@@ -4,7 +4,6 @@ from torch.optim import AdamW, lr_scheduler
 
 
 class ReinforceAgent:
-
     def __init__(
         self,
         common,

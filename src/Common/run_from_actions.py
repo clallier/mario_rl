@@ -11,7 +11,7 @@ def test_from_actions_path(action_pt_path: str, common: Common):
     path = Path(action_pt_path)
     print("### loading actions from: ", path.resolve(), path.exists())
     actions = torch.load(path)
-    # e.g: 
+    # e.g:
     # path ="../../runs/Feb15_22-47-59/actions/agent_actions_ep:6985_rw:3058.pt"
     test_from_actions(actions, common, path)
 
