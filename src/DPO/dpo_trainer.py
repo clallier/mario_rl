@@ -2,12 +2,11 @@ import time
 
 import numpy as np
 import torch
-from torch import nn
 
 from src.Common.async_multi_sim import AsyncMultiSims
 from src.Common.trainer import Trainer
 from src.DPO.dpo_agent import DPOAgent
-from src.Common.conv_calc import debug_count_params, debug_nn_size
+from src.Common.conv_calc import debug_count_params
 
 
 # from https://www.youtube.com/watch?v=MEt6rrxH8W4
@@ -52,7 +51,7 @@ class DPOTrainer(Trainer):
         self.num_updates = self.num_episodes // self.batch_size
 
         if self.debug:
-            state = self.sim.reset()
+            # state = self.sim.reset()
             # debug_nn_size(self.agent.actor, state, device)
             debug_count_params(self.agent.network)
             debug_count_params(self.agent.actor)
@@ -228,69 +227,70 @@ class DPOTrainer(Trainer):
                         sub_advantages.std() + 1e-8
                     )
 
-                # # Policy loss
+                # Policy loss
                 pg_loss1 = -sub_advantages * ratio
-                # pg_loss2 = -sub_advantages * torch.clamp(
-                #     ratio, 1 - self.clip_coef, 1 + self.clip_coef
-                # )
-                # pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+                pg_loss2 = -sub_advantages * torch.clamp(
+                    ratio, 1 - self.clip_coef, 1 + self.clip_coef
+                )
+                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
-                # # Value loss
-                # new_value = new_value.view(-1)
-                # if self.clip_vloss:
-                #     v_loss_unclipped = (new_value - flatten_returns[sub_idx]) ** 2
-                #     v_clipped = flatten_values[sub_idx] + torch.clamp(
-                #         new_value - flatten_values[sub_idx],
-                #         -self.clip_coef,
-                #         self.clip_coef,
-                #     )
-                #     v_loss_clipped = (v_clipped - flatten_returns[sub_idx]) ** 2
-                #     v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
-                #     v_loss = 0.5 * v_loss_max.mean()
-                # else:
-                #     v_loss = 0.5 * ((new_value - flatten_returns[sub_idx]) ** 2).mean()
+                # Value loss
+                # TODO check this algorithm
+                pg_loss = pg_loss.view(-1)
+                if self.clip_vloss:
+                    v_loss_unclipped = (pg_loss - flatten_returns[sub_idx]) ** 2
+                    v_clipped = flatten_values[sub_idx] + torch.clamp(
+                        pg_loss - flatten_values[sub_idx],
+                        -self.clip_coef,
+                        self.clip_coef,
+                    )
+                    v_loss_clipped = (v_clipped - flatten_returns[sub_idx]) ** 2
+                    v_loss_max = torch.max(v_loss_unclipped, v_loss_clipped)
+                    v_loss = 0.5 * v_loss_max.mean()
+                else:
+                    v_loss = 0.5 * ((pg_loss - flatten_returns[sub_idx]) ** 2).mean()
 
-                # entropy_loss = entropy.mean()
-                # loss = pg_loss - self.ent_coef * entropy_loss + v_loss * self.vf_coef
+                entropy_loss = entropy.mean()
+                loss = pg_loss - self.ent_coef * entropy_loss + v_loss * self.vf_coef
                 loss = pg_loss1.sum()
                 print("loss", loss.item())
                 self.agent.retropropagate(loss, self.max_grad_norm)
 
-            # if self.target_kl is not None:
-            #     if approx_kl > self.target_kl:
-            #         break
+            if self.target_kl is not None:
+                if approx_kl > self.target_kl:
+                    break
 
-            # y_pred, y_true = flatten_values.cpu().numpy(), flatten_returns.cpu().numpy()
-            # var_y = np.var(y_true)
-            # explained_var = (
-            #     np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
-            # )
-            # print("explained_var", explained_var.item())
+            y_pred, y_true = flatten_values.cpu().numpy(), flatten_returns.cpu().numpy()
+            var_y = np.var(y_true)
+            explained_var = (
+                np.nan if var_y == 0 else 1 - np.var(y_true - y_pred) / var_y
+            )
+            print("explained_var", explained_var.item())
 
-            # self.logger.add_scalar(
-            #     "charts/learning_rate",
-            #     self.agent.optimizer.param_groups[0]["lr"],
-            #     self.global_step,
-            # )
-            # self.logger.add_scalar("losses/value_loss", v_loss.item(), self.global_step)
-            # self.logger.add_scalar(
-            #     "losses/policy_loss", pg_loss.item(), self.global_step
-            # )
-            # self.logger.add_scalar(
-            #     "losses/entropy_loss", entropy_loss.item(), self.global_step
-            # )
-            # self.logger.add_scalar(
-            #     "losses/old_approx_kl", old_approx_kl.item(), self.global_step
-            # )
-            # self.logger.add_scalar(
-            #     "losses/approx_kl", approx_kl.item(), self.global_step
-            # )
-            # self.logger.add_scalar(
-            #     "losses/clip_frac", np.mean(clip_fracs), self.global_step
-            # )
-            # self.logger.add_scalar(
-            #     "losses/explained_variance", explained_var, self.global_step
-            # )
+            self.logger.add_scalar(
+                "charts/learning_rate",
+                self.agent.optimizer.param_groups[0]["lr"],
+                self.global_step,
+            )
+            self.logger.add_scalar("losses/value_loss", v_loss.item(), self.global_step)
+            self.logger.add_scalar(
+                "losses/policy_loss", pg_loss.item(), self.global_step
+            )
+            self.logger.add_scalar(
+                "losses/entropy_loss", entropy_loss.item(), self.global_step
+            )
+            self.logger.add_scalar(
+                "losses/old_approx_kl", old_approx_kl.item(), self.global_step
+            )
+            self.logger.add_scalar(
+                "losses/approx_kl", approx_kl.item(), self.global_step
+            )
+            self.logger.add_scalar(
+                "losses/clip_frac", np.mean(clip_fracs), self.global_step
+            )
+            self.logger.add_scalar(
+                "losses/explained_variance", explained_var, self.global_step
+            )
             self.logger.add_scalar(
                 "charts/SPS",
                 int(self.global_step / (time.time() - self.start_time)),

@@ -121,6 +121,8 @@ class NEATTrainer(Trainer):
         )
         with open(path, "wb") as f:
             pickle.dump(state, f)
+        actions = self.population.best_genome.info.get("episode").get("a")
+        test_from_actions(actions, self.common, path)
 
     def load_complete_state(self, path: Path):
         with open(path, "rb") as f:

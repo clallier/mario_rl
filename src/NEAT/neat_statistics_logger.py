@@ -1,4 +1,3 @@
-import math
 import time
 
 import numpy as np
@@ -60,9 +59,9 @@ class StatisticsLogger(neat.StatisticsReporter):
             print(
                 f"Best fit: {best.fitness:.2f}, size: {best.size()!r}, species {best_species_id}, id {best.key}"
             )
-        except:
+        except Exception as e:
             print(
-                f"WARNING: error with species.get_species_id(best.key), best.key: {best.key}"
+                f"WARNING: error with species.get_species_id(best.key), best.key: {best.key}, error: {e}"
             )
 
         self.logger.add_histogram("Finesses", pop_fitnesses, self.generation)
