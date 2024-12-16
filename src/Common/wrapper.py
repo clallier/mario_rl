@@ -141,7 +141,7 @@ class CustomReward(Wrapper):
             self.time_since_last_x_move = 0
 
         # timeout
-        if self.time_since_last_x_move > 15:
+        if self.time_since_last_x_move > 30:
             done = True
             timeout = True
             reward -= 500

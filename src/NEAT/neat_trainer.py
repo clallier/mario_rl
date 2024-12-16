@@ -88,7 +88,7 @@ class NEATTrainer(Trainer):
 
         self.sim.close()
 
-        if self.common.debug and self.episode % 10 == 0:
+        if self.episode % 10 == 0:
             i = agents.index(max(agents, key=lambda a: a.genome.fitness))
             g = agents[i].genome
             print(f"### best, id:{g.key}, fit: {g.fitness}, ")
@@ -106,7 +106,8 @@ class NEATTrainer(Trainer):
     @background
     def eval_agent(self, agent: NeatAgent, i: int):
         if not agent.done:
-            action = agent.choose_action(agent.prev_state)
+            next_info = self.info_to_tensor(agent.genome.info)
+            action = agent.choose_action(agent.prev_state, next_info)
             state, _, done, info = self.sim.envs[i].step(action)
             agent.update_fitness(state, done, info)
 

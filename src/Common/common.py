@@ -25,8 +25,8 @@ def background(f):
 
 
 class Common:
-    RIGHT_RUN = [["right"], ["right", "A"], ["right", "A", "B"]]
-    # RIGHT_RUN = [["right", "B"], ["right", "A", "B"]]
+    # RIGHT_RUN = [["right"],  ["right", "A"], ["right", "A", "B"]]
+    RIGHT_RUN = [["right", "B"], ["right", "A", "B"]]
 
     def __init__(self):
         self.change_path()

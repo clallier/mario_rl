@@ -54,19 +54,14 @@ class Trainer(ABC):
         return torch.tensor(arr, dtype=dtype, device=self.device)
 
     def info_to_tensor(self, info: np.array):
-        arr = np.array(
-            [
-                [
-                    i.get("x_pos"),
-                    i.get("y_pos"),
-                    i.get("flag_get"),
-                    i.get("coins"),
-                    i.get("score"),
-                    i.get("time"),
-                ]
-                for i in info
-            ]
-        )
+        arr = np.array([
+                    info.get("x_pos", 0),
+                    info.get("y_pos", 80),
+                    info.get("flag_get", 0),
+                    info.get("coins", 0),
+                    info.get("score", 0),
+                    info.get("time", 400),
+        ])    
         return torch.tensor(arr, dtype=torch.float32, device=self.device)
 
     @abstractmethod
