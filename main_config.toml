@@ -13,7 +13,7 @@ ENV_NAME = "SuperMarioBros-1-1-v3"
 algo = "NEAT"
 
 # algorithms config files
-neat_config_file = "neat_config.v5.cfg"
+neat_config_file = "neat_config.v6.cfg"
 dpo_config_file = "dpo_config.toml"
 reinforce_config_file = "reinforce_config.toml"
 dqnn_config_file = "dqnn_config.toml"
