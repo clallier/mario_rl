@@ -1,8 +1,9 @@
 import asyncio
 import math
-import os
 import pickle
 import random
+import re
+import os
 import shutil
 from configparser import ConfigParser
 from datetime import datetime
@@ -58,6 +59,20 @@ class Common:
         print(f"Common.change_path: chdir to {root_dir}")
         os.chdir(root_dir)
 
+    def get_config_path(self, algo: str):
+        config_file_name = f"{algo}_config_file"
+        config_path = Common.get_file(
+            f"./config_files/{self.config.get(config_file_name)}"
+        )
+        return config_path
+
+    def get_version(self, config_path: str) -> str:
+        stem = Path(config_path).stem
+        match = re.match(r".+.v(.+)", stem)
+        version = match.group(1) if match else "0"
+        return "v" + version
+
+
     @staticmethod
     def get_file(file_path):
         src_dir = Path(__file__).parent.parent
@@ -87,9 +102,13 @@ class Logger:
     def __init__(self, common):
         start_tensorboard = common.config.get("start_tensorboard", False)
         start_wandb = common.config.get("start_wandb", False)
+        
         algo = common.config.get("algo")
+        algo = algo.lower()
         env_name = common.config.get("ENV_NAME")
-        project_name = f"{env_name}_{algo}"
+        config_path = common.get_config_path(algo)
+        version = common.get_version(config_path)
+        project_name = f"{env_name}_{algo}_{version}"
 
         # tensorboard
         if start_tensorboard:

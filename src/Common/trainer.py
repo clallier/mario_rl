@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
 import re
-
 import numpy as np
 import torch
 
@@ -16,12 +15,8 @@ class Trainer(ABC):
         self.tracker = Tracker(self.algo, self.logger)
 
         # config
-        config_file_name = f"{self.algo}_config_file"
-        self.config_path = Common.get_file(
-            f"./config_files/{common.config.get(config_file_name)}"
-        )
-
-        self.version = self.get_version(self.config_path.stem)
+        self.config_path = common.get_config_path(self.algo)
+        self.version = common.get_version(self.config_path)
         self.config = common.load_config_file(self.config_path)
         self.logger.add_file(self.config_path)
 
@@ -37,11 +32,6 @@ class Trainer(ABC):
         self.agent = self.create_agent()
         self.init()
         self.load_state()
-
-    def get_version(self, config_path_stem: str):
-        match = re.match(r".+.v(.+)", config_path_stem)
-        version = match.group(1) if match else "0"
-        return "v" + version
 
     def close(self):
         if self.sim:
