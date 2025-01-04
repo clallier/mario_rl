@@ -1,6 +1,5 @@
 # conda deactivate
 # conda env remove --name mario_rl
-# conda env remove --name mario_rl_py3.11
 # conda env create --file environment.yml
 # conda activate mario_rl
 #

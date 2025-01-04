@@ -114,7 +114,7 @@ class Logger:
         if start_tensorboard:
             self.writer = SummaryWriter()
         else:
-            self.writer = DummyLogger()
+            self.writer = DummyLogger(project_name)
 
         # wandb
         self.wandb_run = None
@@ -187,9 +187,8 @@ class Logger:
 
 
 class DummyLogger:
-    def __init__(self):
-        date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.log_dir = Path(Path.cwd(), "runs", date_str)
+    def __init__(self, project_name: str):
+        self.log_dir = Path(Path.cwd(), "runs", project_name)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         log_file_path = Path(self.log_dir, "run.log")
         self.log_file = open(log_file_path, "w+")
@@ -272,7 +271,7 @@ class Tracker:
     def save_actions(self, actions, rewards, episode):
         path = Path(
             self.logger.actions_dir,
-            f"{self.algo}_actions_ep:{episode}_rw:{int(rewards)}.pt",
+            f"{self.algo}_actions_ep{episode}_rw{int(rewards)}.pt",
         )
         if not self.logger.actions_dir.exists():
             print(f"WARNING save_actions: path doesn't exists, skipping save: {path}")

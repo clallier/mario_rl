@@ -15,7 +15,7 @@ class NeatAgent:
 
     def choose_action(self, state, info):
         # flatten and concatenate the state
-        state = np.concatenate((np.array(state).flatten(), np.array(info)), axis=0)
+        state = np.concatenate((np.array(state).flatten(), np.array(info.cpu())), axis=0)
         output = self.net.activate(state)
         # print(f"output: {output}")
         # output to action

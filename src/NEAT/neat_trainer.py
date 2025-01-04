@@ -96,7 +96,7 @@ class NEATTrainer(Trainer):
             pp(g.info, width=120, compact=True)
             # self.sim.envs[i].render()
             actions = g.info.get("episode").get("a")
-            test_from_actions(actions, self.common)
+            # test_from_actions(actions, self.common)
 
     @background
     def new_agent(self, config, genome, init_state):
